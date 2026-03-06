@@ -93,7 +93,9 @@ func Read() (models.ClipboardContent, error) {
 
 	if cHTML != nil {
 		content.RawHTML = C.GoString(cHTML)
-		content.ContentType = models.ContentTypeHTML
+		if content.RawHTML != "" {
+			content.ContentType = models.ContentTypeHTML
+		}
 		C.free(unsafe.Pointer(cHTML))
 	}
 

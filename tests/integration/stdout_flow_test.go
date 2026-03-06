@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stn1slv/md-paste/internal/clipboard"
+	"github.com/stn1slv/md-paste/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,6 +17,13 @@ func TestStdoutFlow(t *testing.T) {
 	// Save clipboard state to restore after the test
 	originalContent, err := clipboard.Read()
 	require.NoError(t, err)
+
+	if originalContent.PlainText == "" && originalContent.RawHTML != "" {
+		t.Skip("Skipping test to avoid destructive cleanup of rich HTML-only clipboard state")
+	} else if originalContent.PlainText == "" && originalContent.ContentType != models.ContentTypeNone {
+		t.Skip("Skipping test to avoid destructive cleanup of non-text clipboard state")
+	}
+
 	t.Cleanup(func() {
 		if originalContent.PlainText != "" {
 			_ = clipboard.WriteMarkdown(originalContent.PlainText)

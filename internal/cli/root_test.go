@@ -8,8 +8,8 @@ import (
 )
 
 func TestRootCmdFlags(t *testing.T) {
-	// Reset flag before testing
-	stdoutFlag = false
+	// Reset flag after testing
+	t.Cleanup(func() { stdoutFlag = false })
 
 	cmd := rootCmd
 	// Only parse flags to avoid executing the actual clipboard logic

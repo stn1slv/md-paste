@@ -17,3 +17,7 @@ build:
 
 run:
 	go run ./cmd/md-paste
+
+upgrade-deps:
+	go get -u ./...
+	go mod tidy
