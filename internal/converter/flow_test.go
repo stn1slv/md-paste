@@ -1,10 +1,9 @@
-package integration
+package converter
 
 import (
 	"strings"
 	"testing"
 
-	"github.com/stn1slv/md-paste/internal/converter"
 	"github.com/stn1slv/md-paste/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,7 +55,7 @@ func TestClipboardFlow(t *testing.T) {
 				RawHTML:     tt.html,
 			}
 
-			doc, err := converter.Convert(content)
+			doc, err := Convert(content)
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.expected, strings.TrimSpace(doc.Content))

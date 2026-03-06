@@ -3,6 +3,7 @@ package integration
 import (
 	"bytes"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -11,12 +12,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const binPath = "../../bin/md-paste"
-
 func TestStdoutFlow(t *testing.T) {
-	// 1. Build the binary so we can test it directly
+	// Save clipboard state to restore after the test
+	originalContent, err := clipboard.Read()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if originalContent.PlainText != "" {
+			_ = clipboard.WriteMarkdown(originalContent.PlainText)
+		} else {
+			_ = clipboard.Clear()
+		}
+	})
+
+	// 1. Build the binary to a temporary directory so we can test it directly
+	binDir := t.TempDir()
+	binPath := filepath.Join(binDir, "md-paste")
+	//nolint:gosec // Testing execution of built binary
 	cmdBuild := exec.Command("go", "build", "-o", binPath, "../../cmd/md-paste")
-	err := cmdBuild.Run()
+	err = cmdBuild.Run()
 	require.NoError(t, err, "failed to build binary")
 
 	// 2. Set up the clipboard
@@ -29,20 +42,29 @@ func TestStdoutFlow(t *testing.T) {
 	require.NoError(t, err)
 
 	// 3. Run the binary with --stdout
+	//nolint:gosec // Testing execution of built binary
 	cmdRun := exec.Command(binPath, "--stdout")
 	var stdout bytes.Buffer
+	var stderr bytes.Buffer
 	cmdRun.Stdout = &stdout
+	cmdRun.Stderr = &stderr
 	err = cmdRun.Run()
-	require.NoError(t, err)
+	require.NoError(t, err, "stderr: %s", stderr.String())
 
-	// 4. Verify output
+	// 4. Verify output and clipboard state
 	output := strings.TrimSpace(stdout.String())
-	assert.Equal(t, htmlContent, output) // It should just output the plain text we wrote
+	assert.Equal(t, htmlContent, output, "stderr: %s", stderr.String()) // It should just output the plain text we wrote
+
+	// Ensure the clipboard remained completely unchanged!
+	afterStdoutContent, err := clipboard.Read()
+	require.NoError(t, err)
+	assert.Equal(t, htmlContent, afterStdoutContent.PlainText)
 
 	// 5. Run the binary without --stdout (normal flow)
 	err = clipboard.WriteMarkdown("<html><b>Test2</b></html>")
 	require.NoError(t, err)
 
+	//nolint:gosec // Testing execution of built binary
 	cmdRunNormal := exec.Command(binPath)
 	var stdoutNormal bytes.Buffer
 	cmdRunNormal.Stdout = &stdoutNormal

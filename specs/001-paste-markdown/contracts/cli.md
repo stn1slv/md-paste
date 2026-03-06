@@ -12,7 +12,7 @@
 ### Outputs
 - **Silence (Default)**: If no flags are provided and conversion is successful, the command exits with code 0 and NO output.
 - **stdout**: If `--stdout` is provided, the Markdown content is printed to the terminal.
-- **stderr**: Errors (e.g., "Empty clipboard", "System failure") are printed to stderr with a non-zero exit code.
+- **stderr**: Real internal failures (e.g., system or conversion errors) are printed to stderr with a non-zero exit code. Note: An empty clipboard or non-text clipboard data is considered a silent success (code 0) and produces no error.
 
 ### Exit Codes
 | Code | Meaning |

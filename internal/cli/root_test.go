@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,21 +8,13 @@ import (
 )
 
 func TestRootCmdFlags(t *testing.T) {
-	// Reset flags before testing
+	// Reset flag before testing
 	stdoutFlag = false
 
-	// Execute with --stdout
 	cmd := rootCmd
-	b := bytes.NewBufferString("")
-	cmd.SetOut(b)
-	cmd.SetErr(b)
-	cmd.SetArgs([]string{"--stdout"})
-
-	err := cmd.Execute()
+	// Only parse flags to avoid executing the actual clipboard logic
+	err := cmd.ParseFlags([]string{"--stdout"})
 	require.NoError(t, err)
 
-	// Since we mock or don't want to actually run the clipboard logic fully if it's empty,
-	// if clipboard is empty, it shouldn't error, but it won't output.
-	// Actually testing the flag parsing itself:
 	assert.True(t, stdoutFlag)
 }

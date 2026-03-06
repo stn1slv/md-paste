@@ -42,7 +42,7 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
-func runPaste(_ *cobra.Command, _ []string) error {
+func runPaste(cmd *cobra.Command, _ []string) error {
 	content, err := clipboard.Read()
 	if err != nil {
 		return errors.Wrap(err, "failed to read clipboard")
@@ -59,7 +59,7 @@ func runPaste(_ *cobra.Command, _ []string) error {
 	}
 
 	if stdoutFlag {
-		fmt.Println(doc.Content)
+		fmt.Fprintln(cmd.OutOrStdout(), doc.Content)
 		return nil
 	}
 

@@ -7,6 +7,8 @@ package clipboard
 #cgo CFLAGS: -x objective-c
 #cgo LDFLAGS: -framework Foundation -framework AppKit
 
+#include <string.h>
+#include <stdlib.h>
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKit.h>
 

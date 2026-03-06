@@ -11,6 +11,23 @@ import (
 // They save the current state and restore it afterwards.
 
 func TestClipboard_ReadWrite(t *testing.T) {
+	// Save the current clipboard state to restore it afterwards
+	originalContent, err := Read()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		// Try to restore appropriately based on what was there
+		switch {
+		case originalContent.RawHTML != "":
+			// We don't have a specific WriteHTML, but restoring plain text is better than nothing
+			// Actually, just restoring the plain text for now.
+			_ = WriteMarkdown(originalContent.PlainText)
+		case originalContent.PlainText != "":
+			_ = WriteMarkdown(originalContent.PlainText)
+		default:
+			_ = Clear()
+		}
+	})
+
 	// Skip if not on macOS or no display environment? Actually, since it's a macOS specific app,
 	// let's assume the test environment supports it.
 
