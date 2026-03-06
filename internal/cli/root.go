@@ -26,7 +26,9 @@ By default, it writes the converted Markdown back to the clipboard.`,
 
   # Pipe the converted Markdown to another command
   md-paste -s | grep "TODO"`,
-		RunE: runPaste,
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE:          runPaste,
 	}
 
 	// Flags

@@ -24,8 +24,8 @@ func TestClipboard_ReadWrite(t *testing.T) {
 	originalContent, err := Read()
 	require.NoError(t, err)
 
-	if originalContent.PlainText == "" && originalContent.RawHTML != "" {
-		t.Skip("Skipping test to avoid destructive cleanup of rich HTML-only clipboard state")
+	if originalContent.RawHTML != "" {
+		t.Skip("Skipping test to avoid destructive cleanup of rich HTML clipboard state")
 	} else if originalContent.PlainText == "" && originalContent.ContentType != models.ContentTypeNone {
 		t.Skip("Skipping test to avoid destructive cleanup of non-text clipboard state")
 	}
