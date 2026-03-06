@@ -12,11 +12,17 @@ When copying from a browser or a word processor, the clipboard stores rich text.
 
 ## Installation
 
-### Prerequisites
+### Via Homebrew (Recommended)
+```bash
+brew install stn1slv/tap/md-paste
+```
+
+### Build from source
+#### Prerequisites
 - macOS (requires native Cocoa/AppKit libraries)
 - Go 1.26+
 
-### Build from source
+#### Build steps
 ```bash
 git clone https://github.com/stn1slv/md-paste.git
 cd md-paste
