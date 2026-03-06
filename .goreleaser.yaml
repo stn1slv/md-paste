@@ -45,4 +45,4 @@ brews:
     description: "Convert rich text on the macOS clipboard to Markdown"
     license: "MIT"
     test: |
-      system "#{bin}/md-paste --help"
+      system "#{bin}/md-paste", "--help"
