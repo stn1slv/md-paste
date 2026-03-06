@@ -3,6 +3,7 @@
 package clipboard
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stn1slv/md-paste/internal/models"
@@ -13,7 +14,12 @@ import (
 // NOTE: These tests interact with the actual macOS clipboard.
 // They save the current state and restore it afterwards.
 
+//nolint:revive // Test setup involves multiple state checks
 func TestClipboard_ReadWrite(t *testing.T) {
+	if os.Getenv("MD_PASTE_E2E") == "" {
+		t.Skip("Skipping clipboard-mutating test; set MD_PASTE_E2E=1 to run")
+	}
+
 	// Save the current clipboard state to restore it afterwards
 	originalContent, err := Read()
 	require.NoError(t, err)

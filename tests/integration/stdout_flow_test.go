@@ -1,7 +1,10 @@
+//go:build darwin
+
 package integration
 
 import (
 	"bytes"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -13,7 +16,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+//nolint:revive // Integration test requires linear state setup
 func TestStdoutFlow(t *testing.T) {
+	if os.Getenv("MD_PASTE_E2E") == "" {
+		t.Skip("Skipping clipboard-mutating test; set MD_PASTE_E2E=1 to run")
+	}
+
 	// Save clipboard state to restore after the test
 	originalContent, err := clipboard.Read()
 	require.NoError(t, err)
