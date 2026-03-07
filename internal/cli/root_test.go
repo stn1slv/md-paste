@@ -26,10 +26,12 @@ func TestTableConversionIntegration(t *testing.T) {
 	oldRead := clipboardRead
 	oldWrite := clipboardWrite
 	oldStdout := stdoutFlag
+	oldOut := rootCmd.OutOrStdout()
 	t.Cleanup(func() {
 		clipboardRead = oldRead
 		clipboardWrite = oldWrite
 		stdoutFlag = oldStdout
+		rootCmd.SetOut(oldOut)
 	})
 
 	// Set up mock content: A simple HTML table

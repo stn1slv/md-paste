@@ -37,9 +37,32 @@ func findFirstTable(n *html.Node) *html.Node {
 	return nil
 }
 
+func findTableRows(tableNode *html.Node) []*html.Node {
+	var rows []*html.Node
+
+	for child := tableNode.FirstChild; child != nil; child = child.NextSibling {
+		if child.Type != html.ElementNode {
+			continue
+		}
+
+		switch child.DataAtom {
+		case atom.Tr:
+			rows = append(rows, child)
+		case atom.Thead, atom.Tbody, atom.Tfoot:
+			for rc := child.FirstChild; rc != nil; rc = rc.NextSibling {
+				if rc.Type == html.ElementNode && rc.DataAtom == atom.Tr {
+					rows = append(rows, rc)
+				}
+			}
+		}
+	}
+
+	return rows
+}
+
 func parseTable(tableNode *html.Node) models.Table {
 	var table models.Table
-	rows := findNodes(tableNode, atom.Tr)
+	rows := findTableRows(tableNode)
 
 	converter := htmltomarkdown.NewConverter("", true, nil)
 
@@ -108,6 +131,11 @@ func getSpans(n *html.Node) (rowSpan int, colSpan int) {
 func findNodes(n *html.Node, atoms ...atom.Atom) []*html.Node {
 	var results []*html.Node
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		// Stop descending if we hit a nested table to avoid collecting its cells
+		if c.Type == html.ElementNode && c.DataAtom == atom.Table {
+			continue
+		}
+
 		match := false
 		for _, a := range atoms {
 			if c.DataAtom == a {
@@ -165,9 +193,11 @@ func parseStyleAttr(val string) models.Alignment {
 }
 
 func processCellContent(n *html.Node, converter *htmltomarkdown.Converter) string {
+	// FR-005: Confluence macro stripping.
+	// We'll traverse and replace such spans with their text before general conversion.
 	var innerHTML strings.Builder
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		_ = html.Render(&innerHTML, c) // Ignoring error as we have fallback
+		processNodeForMacros(c, &innerHTML)
 	}
 
 	markdown, err := converter.ConvertString(innerHTML.String())
@@ -178,6 +208,33 @@ func processCellContent(n *html.Node, converter *htmltomarkdown.Converter) strin
 	}
 
 	return strings.TrimSpace(markdown)
+}
+
+func processNodeForMacros(n *html.Node, sb *strings.Builder) {
+	if isConfluenceMacro(n) {
+		var textSB strings.Builder
+		renderTextOnly(n, &textSB)
+		sb.WriteString(textSB.String())
+		return
+	}
+
+	if n.Type == html.ElementNode {
+		_ = html.Render(sb, n)
+	} else if n.Type == html.TextNode {
+		sb.WriteString(n.Data)
+	}
+}
+
+func isConfluenceMacro(n *html.Node) bool {
+	if n.Type != html.ElementNode {
+		return false
+	}
+	for _, attr := range n.Attr {
+		if attr.Key == "class" && strings.Contains(attr.Val, "confluence-jim-macro") {
+			return true
+		}
+	}
+	return false
 }
 
 func renderTextOnly(n *html.Node, sb *strings.Builder) {

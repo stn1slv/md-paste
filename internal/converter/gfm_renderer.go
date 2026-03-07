@@ -14,31 +14,42 @@ func RenderTable(table models.Table) string {
 
 	var sb strings.Builder
 
-	// GFM requires a header row and a separator row.
-	// If the source has no header, we treat the first row as the header.
-	headerRow := table.Rows[0]
+	// Find the header row. Use the first row marked as header, or fallback to index 0.
+	headerIdx := findHeaderIndex(table)
+	headerRow := table.Rows[headerIdx]
+
+	// Render header row
 	renderRow(&sb, headerRow)
 	sb.WriteString("\n")
 
-	// Render separator row
+	// Render separator row based on header alignment
 	renderSeparator(&sb, headerRow)
-	sb.WriteString("\n")
 
-	// Render remaining rows
-	for i := 1; i < len(table.Rows); i++ {
-		renderRow(&sb, table.Rows[i])
-		if i < len(table.Rows)-1 {
-			sb.WriteString("\n")
+	// Render all other rows
+	for i, row := range table.Rows {
+		if i == headerIdx {
+			continue
 		}
+		sb.WriteString("\n")
+		renderRow(&sb, row)
 	}
 
 	return sb.String()
 }
 
+func findHeaderIndex(table models.Table) int {
+	for i, row := range table.Rows {
+		if row.IsHeader {
+			return i
+		}
+	}
+	return 0
+}
+
 func renderRow(sb *strings.Builder, row models.Row) {
 	sb.WriteString("|")
 	for _, cell := range row.Cells {
-		content := escapePipe(cell.Content)
+		content := sanitizeCellContent(cell.Content)
 		sb.WriteString(" ")
 		sb.WriteString(content)
 		sb.WriteString(" |")
@@ -63,6 +74,12 @@ func renderSeparator(sb *strings.Builder, headerRow models.Row) {
 	}
 }
 
-func escapePipe(content string) string {
+func sanitizeCellContent(content string) string {
+	// GFM tables do not support newlines within cells.
+	// We replace them with spaces to preserve structure.
+	content = strings.ReplaceAll(content, "\n", " ")
+	// Collapse multiple spaces that might have been introduced
+	content = strings.Join(strings.Fields(content), " ")
+	// Escape pipes
 	return strings.ReplaceAll(content, "|", "\\|")
 }

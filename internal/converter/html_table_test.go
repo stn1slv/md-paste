@@ -90,6 +90,21 @@ func TestExtractTableFromHTML(t *testing.T) {
 			found: true,
 		},
 		{
+			name: "confluence macro stripping",
+			html: `<table><tr><td><span class="confluence-jim-macro confluence-status-lozenge" data-status-colour="GREEN">COMPLETE</span></td></tr></table>`,
+			expected: models.Table{
+				HasHeader: false,
+				Rows: []models.Row{
+					{
+						Cells: []models.Cell{
+							{Content: "COMPLETE", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+						},
+					},
+				},
+			},
+			found: true,
+		},
+		{
 			name: "no table found",
 			html: `<div>No table here</div>`,
 			found: false,

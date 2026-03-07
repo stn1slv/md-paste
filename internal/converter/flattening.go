@@ -18,6 +18,14 @@ func FlattenTable(table models.Table) models.Table {
 	for i := 0; i < rowCount; i++ {
 		grid[i] = make([]models.Cell, maxCols)
 		occupied[i] = make([]bool, maxCols)
+		// Initialize grid with default cells to avoid zero-value spans (PR Comment Fix)
+		for j := 0; j < maxCols; j++ {
+			grid[i][j] = models.Cell{
+				RowSpan:   1,
+				ColSpan:   1,
+				Alignment: models.AlignNone,
+			}
+		}
 	}
 
 	populateGrid(table, grid, occupied, rowCount, maxCols)

@@ -80,6 +80,29 @@ func TestExtractTableFromText(t *testing.T) {
 			found: true,
 		},
 		{
+			name: "max columns normalization (header has fewer)",
+			text: "H1  H2\nD1  D2  D3",
+			expected: models.Table{
+				Rows: []models.Row{
+					{
+						Cells: []models.Cell{
+							{Content: "H1", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "H2", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+						},
+					},
+					{
+						Cells: []models.Cell{
+							{Content: "D1", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "D2", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "D3", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+						},
+					},
+				},
+			},
+			found: true,
+		},
+		{
 			name:  "not a table (single column)",
 			text:  "Just some text\nOn multiple lines",
 			found: false,

@@ -62,13 +62,20 @@ func normalizeColumnCounts(table *models.Table) {
 	if len(table.Rows) == 0 {
 		return
 	}
-	maxCols := len(table.Rows[0].Cells)
+
+	// Compute max column count across all rows to avoid dropping data
+	maxCols := 0
+	for _, row := range table.Rows {
+		if len(row.Cells) > maxCols {
+			maxCols = len(row.Cells)
+		}
+	}
+
 	for i := range table.Rows {
 		if len(table.Rows[i].Cells) < maxCols {
 			padRow(&table.Rows[i], maxCols)
-		} else if len(table.Rows[i].Cells) > maxCols {
-			table.Rows[i].Cells = table.Rows[i].Cells[:maxCols]
 		}
+		// No truncation needed if we use maxCols
 	}
 }
 

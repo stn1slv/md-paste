@@ -74,6 +74,19 @@ func TestRenderTable(t *testing.T) {
 			expected: "| Header \\| with pipe |\n| --- |\n| Data \\| with pipe |",
 		},
 		{
+			name: "sanitizing newlines",
+			table: models.Table{
+				Rows: []models.Row{
+					{
+						Cells: []models.Cell{
+							{Content: "Line 1\nLine 2"},
+						},
+					},
+				},
+			},
+			expected: "| Line 1 Line 2 |\n| --- |",
+		},
+		{
 			name: "empty table",
 			table: models.Table{
 				Rows: []models.Row{},

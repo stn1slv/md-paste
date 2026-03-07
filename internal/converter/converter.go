@@ -17,16 +17,22 @@ func Convert(content models.ClipboardContent) (models.MarkdownDocument, error) {
 		return models.MarkdownDocument{}, errors.New("no content to convert")
 	}
 
+	// 1. Try HTML table extraction first if HTML is available
 	if content.RawHTML != "" {
 		if doc, ok := tryHTMLTableConversion(content.RawHTML); ok {
 			return doc, nil
 		}
 	}
 
-	if content.ContentType == models.ContentTypePlainText {
+	// 2. Try text table extraction as a secondary fallback if HTML extraction failed or wasn't available
+	if content.PlainText != "" {
 		if doc, ok := tryTextTableConversion(content.PlainText); ok {
 			return doc, nil
 		}
+	}
+
+	// 3. Perform standard conversion if no table was detected
+	if content.ContentType == models.ContentTypePlainText {
 		return models.MarkdownDocument{
 			Content:    content.PlainText,
 			SourceType: models.ContentTypePlainText,
@@ -57,6 +63,12 @@ func tryTextTableConversion(plainText string) (models.MarkdownDocument, bool) {
 }
 
 func performStandardHTMLConversion(rawHTML string) (models.MarkdownDocument, error) {
+	// If RawHTML is empty but we reached here, it means we must have PlainText.
+	// This can happen if ContentType is HTML but RawHTML is empty (unexpected but handled).
+	if rawHTML == "" {
+		return models.MarkdownDocument{}, errors.New("no HTML content to convert")
+	}
+
 	converter := htmltomarkdown.NewConverter(emptyDomain, true, nil)
 	markdown, err := converter.ConvertString(rawHTML)
 	if err != nil {
