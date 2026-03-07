@@ -14,11 +14,10 @@ func RenderTable(table models.Table) string {
 
 	var sb strings.Builder
 
-	// Find the header row. Use the first row marked as header, or fallback to index 0.
-	headerIdx := findHeaderIndex(table)
-	headerRow := table.Rows[headerIdx]
-
-	// Render header row
+	// GFM requires a header row and a separator row.
+	// We treat the first row (index 0) as the header to preserve original row order,
+	// ignoring IsHeader if it's not the first row, to avoid reordering.
+	headerRow := table.Rows[0]
 	renderRow(&sb, headerRow)
 	sb.WriteString("\n")
 
@@ -26,24 +25,12 @@ func RenderTable(table models.Table) string {
 	renderSeparator(&sb, headerRow)
 
 	// Render all other rows
-	for i, row := range table.Rows {
-		if i == headerIdx {
-			continue
-		}
+	for i := 1; i < len(table.Rows); i++ {
 		sb.WriteString("\n")
-		renderRow(&sb, row)
+		renderRow(&sb, table.Rows[i])
 	}
 
 	return sb.String()
-}
-
-func findHeaderIndex(table models.Table) int {
-	for i, row := range table.Rows {
-		if row.IsHeader {
-			return i
-		}
-	}
-	return 0
 }
 
 func renderRow(sb *strings.Builder, row models.Row) {
@@ -79,7 +66,9 @@ func sanitizeCellContent(content string) string {
 	// We replace them with spaces to preserve structure, but avoid
 	// collapsing other whitespace that may be meaningful in Markdown
 	// (e.g., inside inline code spans).
+	content = strings.ReplaceAll(content, "\r\n", " ")
 	content = strings.ReplaceAll(content, "\n", " ")
+	content = strings.ReplaceAll(content, "\r", " ")
 	// Trim leading and trailing spaces that may have been introduced
 	// by newline replacement, while preserving internal spacing.
 	content = strings.TrimSpace(content)

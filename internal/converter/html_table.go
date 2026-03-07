@@ -185,7 +185,7 @@ func parseAlignVal(val string) models.Alignment {
 func parseStyleAttr(val string) models.Alignment {
 	styles := strings.Split(val, ";")
 	for _, style := range styles {
-		parts := strings.Split(style, ":")
+		parts := strings.SplitN(style, ":", 2)
 		if len(parts) == 2 && strings.TrimSpace(parts[0]) == "text-align" {
 			return parseAlignVal(strings.TrimSpace(parts[1]))
 		}
