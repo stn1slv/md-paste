@@ -3,6 +3,7 @@
 Auto-generated from all feature plans. Last updated: 2026-03-06
 
 ## Active Technologies
+- Go 1.26+ + `golang.org/x/net/html` (002-table-support)
 
 - **Language**: Go 1.26+
 - **CLI Framework**: `cobra`
@@ -34,6 +35,7 @@ tests/      # Additional integration tests
 - Adhere to `golangci-lint` rules defined in `.golangci.yml`.
 
 ## Recent Changes
+- 002-table-support: Added Go 1.26+ + `golang.org/x/net/html`
 
 - `001-paste-markdown`: Initialized Go 1.26+ project with `cobra`, `html-to-markdown`, `testify`, automated releases via GoReleaser, and native macOS CGO clipboard integration.
 
