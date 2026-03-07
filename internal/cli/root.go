@@ -3,6 +3,7 @@ package cli
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/spf13/cobra"
 	"github.com/stn1slv/md-paste/internal/clipboard"
@@ -33,6 +34,10 @@ By default, it writes the converted Markdown back to the clipboard.`,
 
 	// Flags
 	stdoutFlag bool
+
+	// Injected dependencies for testing
+	clipboardRead  = clipboard.Read
+	clipboardWrite = clipboard.WriteMarkdown
 )
 
 func init() {
@@ -45,7 +50,7 @@ func Execute() error {
 }
 
 func runPaste(cmd *cobra.Command, _ []string) error {
-	content, err := clipboard.Read()
+	content, err := clipboardRead()
 	if err != nil {
 		return errors.Wrap(err, "failed to read clipboard")
 	}
@@ -61,14 +66,18 @@ func runPaste(cmd *cobra.Command, _ []string) error {
 	}
 
 	if stdoutFlag {
-		fmt.Fprintln(cmd.OutOrStdout(), doc.Content)
-		return nil
+		return printToStdout(cmd.OutOrStdout(), doc.Content)
 	}
 
-	if err := clipboard.WriteMarkdown(doc.Content); err != nil {
+	if err := clipboardWrite(doc.Content); err != nil {
 		return errors.Wrap(err, "failed to write to clipboard")
 	}
 
 	// Silence-on-Success
 	return nil
+}
+
+func printToStdout(out io.Writer, content string) error {
+	_, err := fmt.Fprintln(out, content)
+	return err
 }

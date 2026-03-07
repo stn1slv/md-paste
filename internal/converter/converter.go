@@ -17,19 +17,48 @@ func Convert(content models.ClipboardContent) (models.MarkdownDocument, error) {
 		return models.MarkdownDocument{}, errors.New("no content to convert")
 	}
 
+	if content.RawHTML != "" {
+		if doc, ok := tryHTMLTableConversion(content.RawHTML); ok {
+			return doc, nil
+		}
+	}
+
 	if content.ContentType == models.ContentTypePlainText {
-		// Plain text is technically a subset of Markdown, but we might just return it as is.
+		if doc, ok := tryTextTableConversion(content.PlainText); ok {
+			return doc, nil
+		}
 		return models.MarkdownDocument{
 			Content:    content.PlainText,
 			SourceType: models.ContentTypePlainText,
 		}, nil
 	}
 
-	converter := htmltomarkdown.NewConverter(emptyDomain, true, nil)
+	return performStandardHTMLConversion(content.RawHTML)
+}
 
-	// Some copied HTML might be wrapped heavily.
-	// html-to-markdown handles standard tags well.
-	markdown, err := converter.ConvertString(content.RawHTML)
+func tryHTMLTableConversion(rawHTML string) (models.MarkdownDocument, bool) {
+	if table, ok := ExtractTableFromHTML(rawHTML); ok {
+		return models.MarkdownDocument{
+			Content:    RenderTable(table),
+			SourceType: models.ContentTypeHTML,
+		}, true
+	}
+	return models.MarkdownDocument{}, false
+}
+
+func tryTextTableConversion(plainText string) (models.MarkdownDocument, bool) {
+	if table, ok := ExtractTableFromText(plainText); ok {
+		return models.MarkdownDocument{
+			Content:    RenderTable(table),
+			SourceType: models.ContentTypePlainText,
+		}, true
+	}
+	return models.MarkdownDocument{}, false
+}
+
+func performStandardHTMLConversion(rawHTML string) (models.MarkdownDocument, error) {
+	converter := htmltomarkdown.NewConverter(emptyDomain, true, nil)
+	markdown, err := converter.ConvertString(rawHTML)
 	if err != nil {
 		return models.MarkdownDocument{}, errors.Wrap(err, "failed to convert HTML to Markdown")
 	}
