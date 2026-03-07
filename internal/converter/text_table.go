@@ -17,12 +17,26 @@ func ExtractTableFromText(text string) (models.Table, bool) {
 	}
 
 	table := parseTextToRows(lines)
-	if len(table.Rows) < 2 {
+	
+	if !isTabular(table) {
 		return models.Table{}, false
 	}
 
 	normalizeColumnCounts(&table)
 	return table, true
+}
+
+func isTabular(table models.Table) bool {
+	if len(table.Rows) < 2 {
+		return false
+	}
+	multiColRows := 0
+	for _, row := range table.Rows {
+		if len(row.Cells) > 1 {
+			multiColRows++
+		}
+	}
+	return multiColRows*2 >= len(table.Rows)
 }
 
 func parseTextToRows(lines []string) models.Table {
@@ -31,23 +45,20 @@ func parseTextToRows(lines []string) models.Table {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
+		
 		parts := colSeparator.Split(line, -1)
-		cleanParts := cleanRowParts(parts)
+		var cleanParts []string
+		for _, p := range parts {
+			if s := strings.TrimSpace(p); s != "" {
+				cleanParts = append(cleanParts, s)
+			}
+		}
+
 		if len(cleanParts) > 1 {
 			table.Rows = append(table.Rows, buildTextRow(cleanParts))
 		}
 	}
 	return table
-}
-
-func cleanRowParts(parts []string) []string {
-	var cleanParts []string
-	for _, p := range parts {
-		if s := strings.TrimSpace(p); s != "" {
-			cleanParts = append(cleanParts, s)
-		}
-	}
-	return cleanParts
 }
 
 func buildTextRow(parts []string) models.Row {
@@ -63,7 +74,6 @@ func normalizeColumnCounts(table *models.Table) {
 		return
 	}
 
-	// Compute max column count across all rows to avoid dropping data
 	maxCols := 0
 	for _, row := range table.Rows {
 		if len(row.Cells) > maxCols {
@@ -75,7 +85,6 @@ func normalizeColumnCounts(table *models.Table) {
 		if len(table.Rows[i].Cells) < maxCols {
 			padRow(&table.Rows[i], maxCols)
 		}
-		// No truncation needed if we use maxCols
 	}
 }
 

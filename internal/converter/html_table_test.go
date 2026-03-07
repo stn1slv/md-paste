@@ -105,6 +105,21 @@ func TestExtractTableFromHTML(t *testing.T) {
 			found: true,
 		},
 		{
+			name: "nested confluence macro stripping",
+			html: `<table><tr><td><p>Status: <span class="confluence-jim-macro">IN PROGRESS</span></p></td></tr></table>`,
+			expected: models.Table{
+				HasHeader: false,
+				Rows: []models.Row{
+					{
+						Cells: []models.Cell{
+							{Content: "Status: IN PROGRESS", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+						},
+					},
+				},
+			},
+			found: true,
+		},
+		{
 			name: "no table found",
 			html: `<div>No table here</div>`,
 			found: false,

@@ -76,10 +76,13 @@ func renderSeparator(sb *strings.Builder, headerRow models.Row) {
 
 func sanitizeCellContent(content string) string {
 	// GFM tables do not support newlines within cells.
-	// We replace them with spaces to preserve structure.
+	// We replace them with spaces to preserve structure, but avoid
+	// collapsing other whitespace that may be meaningful in Markdown
+	// (e.g., inside inline code spans).
 	content = strings.ReplaceAll(content, "\n", " ")
-	// Collapse multiple spaces that might have been introduced
-	content = strings.Join(strings.Fields(content), " ")
+	// Trim leading and trailing spaces that may have been introduced
+	// by newline replacement, while preserving internal spacing.
+	content = strings.TrimSpace(content)
 	// Escape pipes
 	return strings.ReplaceAll(content, "|", "\\|")
 }

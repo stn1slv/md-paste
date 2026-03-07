@@ -103,6 +103,29 @@ func TestExtractTableFromText(t *testing.T) {
 			found: true,
 		},
 		{
+			name: "empty cells in the middle",
+			text: "Col1    Col2    Col3\nVal1            Val3",
+			expected: models.Table{
+				Rows: []models.Row{
+					{
+						Cells: []models.Cell{
+							{Content: "Col1", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "Col2", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "Col3", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+						},
+					},
+					{
+						Cells: []models.Cell{
+							{Content: "Val1", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "Val3", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+						},
+					},
+				},
+			},
+			found: true,
+		},
+		{
 			name:  "not a table (single column)",
 			text:  "Just some text\nOn multiple lines",
 			found: false,

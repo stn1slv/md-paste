@@ -22,7 +22,7 @@ func ExtractTableFromHTML(rawHTML string) (models.Table, bool) {
 		return models.Table{}, false
 	}
 
-	return parseTable(tableNode), true
+	return ParseTable(tableNode), true
 }
 
 func findFirstTable(n *html.Node) *html.Node {
@@ -60,7 +60,7 @@ func findTableRows(tableNode *html.Node) []*html.Node {
 	return rows
 }
 
-func parseTable(tableNode *html.Node) models.Table {
+func ParseTable(tableNode *html.Node) models.Table {
 	var table models.Table
 	rows := findTableRows(tableNode)
 
@@ -197,7 +197,7 @@ func processCellContent(n *html.Node, converter *htmltomarkdown.Converter) strin
 	// We'll traverse and replace such spans with their text before general conversion.
 	var innerHTML strings.Builder
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		processNodeForMacros(c, &innerHTML)
+		processNodeRecursive(c, &innerHTML)
 	}
 
 	markdown, err := converter.ConvertString(innerHTML.String())
@@ -210,7 +210,7 @@ func processCellContent(n *html.Node, converter *htmltomarkdown.Converter) strin
 	return strings.TrimSpace(markdown)
 }
 
-func processNodeForMacros(n *html.Node, sb *strings.Builder) {
+func processNodeRecursive(n *html.Node, sb *strings.Builder) {
 	if isConfluenceMacro(n) {
 		var textSB strings.Builder
 		renderTextOnly(n, &textSB)
@@ -218,10 +218,33 @@ func processNodeForMacros(n *html.Node, sb *strings.Builder) {
 		return
 	}
 
-	if n.Type == html.ElementNode {
-		_ = html.Render(sb, n)
-	} else if n.Type == html.TextNode {
+	if n.Type == html.TextNode {
 		sb.WriteString(n.Data)
+		return
+	}
+
+	if n.Type == html.ElementNode {
+		// Start tag
+		sb.WriteString("<")
+		sb.WriteString(n.Data)
+		for _, attr := range n.Attr {
+			sb.WriteString(" ")
+			sb.WriteString(attr.Key)
+			sb.WriteString(`="`)
+			sb.WriteString(html.EscapeString(attr.Val))
+			sb.WriteString(`"`)
+		}
+		sb.WriteString(">")
+
+		// Children
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			processNodeRecursive(c, sb)
+		}
+
+		// End tag
+		sb.WriteString("</")
+		sb.WriteString(n.Data)
+		sb.WriteString(">")
 	}
 }
 
