@@ -17,7 +17,7 @@ func ExtractTableFromText(text string) (models.Table, bool) {
 	}
 
 	table := parseTextToRows(lines)
-
+	
 	if !isTabular(table) {
 		return models.Table{}, false
 	}
@@ -30,31 +30,41 @@ func isTabular(table models.Table) bool {
 	if len(table.Rows) < 2 {
 		return false
 	}
+	
 	multiColRows := 0
 	for _, row := range table.Rows {
 		if len(row.Cells) > 1 {
 			multiColRows++
 		}
 	}
+	
+	// Heuristic: Majority of rows should have multiple columns to be considered a table.
+	// This filters out regular text blocks.
 	return multiColRows*2 >= len(table.Rows)
 }
 
 func parseTextToRows(lines []string) models.Table {
 	var table models.Table
 	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
 			continue
 		}
-
+		
+		// Split by the separator (2+ spaces or tab)
 		parts := colSeparator.Split(line, -1)
-		var cleanParts []string
+		
+		cleanParts := make([]string, 0, len(parts))
 		for _, p := range parts {
-			if s := strings.TrimSpace(p); s != "" {
-				cleanParts = append(cleanParts, s)
-			}
+			cleanParts = append(cleanParts, strings.TrimSpace(p))
+		}
+		
+		// Remove trailing empty parts introduced by trailing whitespace
+		for len(cleanParts) > 0 && cleanParts[len(cleanParts)-1] == "" {
+			cleanParts = cleanParts[:len(cleanParts)-1]
 		}
 
-		if len(cleanParts) > 1 {
+		if len(cleanParts) > 0 {
 			table.Rows = append(table.Rows, buildTextRow(cleanParts))
 		}
 	}
@@ -74,6 +84,7 @@ func normalizeColumnCounts(table *models.Table) {
 		return
 	}
 
+	// Compute max column count across all rows to avoid dropping data
 	maxCols := 0
 	for _, row := range table.Rows {
 		if len(row.Cells) > maxCols {
