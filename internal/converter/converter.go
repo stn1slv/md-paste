@@ -4,8 +4,8 @@ package converter
 import (
 	"strings"
 
-	"github.com/PuerkitoBio/goquery"
 	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown"
+	"github.com/PuerkitoBio/goquery"
 	"github.com/stn1slv/md-paste/internal/errors"
 	"github.com/stn1slv/md-paste/internal/models"
 )
@@ -20,6 +20,12 @@ func Convert(content models.ClipboardContent) (models.MarkdownDocument, error) {
 
 	// 1. If HTML is available, use the standard conversion with our custom table rule
 	if content.RawHTML != "" {
+		hasTable := strings.Contains(strings.ToLower(content.RawHTML), "<table")
+		if !hasTable && content.PlainText != "" {
+			if doc, ok := tryTextTableConversion(content.PlainText); ok {
+				return doc, nil
+			}
+		}
 		return performStandardHTMLConversion(content.RawHTML)
 	}
 
@@ -55,7 +61,7 @@ func performStandardHTMLConversion(rawHTML string) (models.MarkdownDocument, err
 	// rather than truncating the whole document to just the first table.
 	converter.AddRules(htmltomarkdown.Rule{
 		Filter: []string{"table"},
-		Replacement: func(_ string, selec *goquery.Selection, opt *htmltomarkdown.Options) *string {
+		Replacement: func(_ string, selec *goquery.Selection, _ *htmltomarkdown.Options) *string {
 			if len(selec.Nodes) == 0 {
 				return nil
 			}

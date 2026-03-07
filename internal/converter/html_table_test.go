@@ -3,8 +3,8 @@ package converter
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stn1slv/md-paste/internal/models"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestExtractTableFromHTML(t *testing.T) {
@@ -120,8 +120,8 @@ func TestExtractTableFromHTML(t *testing.T) {
 			found: true,
 		},
 		{
-			name: "no table found",
-			html: `<div>No table here</div>`,
+			name:  "no table found",
+			html:  `<div>No table here</div>`,
 			found: false,
 		},
 	}

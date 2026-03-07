@@ -1,6 +1,7 @@
 package converter
 
 import (
+	stdhtml "html"
 	"strconv"
 	"strings"
 
@@ -220,7 +221,7 @@ func processNodeRecursive(n *html.Node, sb *strings.Builder) {
 	}
 
 	if n.Type == html.TextNode {
-		sb.WriteString(n.Data)
+		sb.WriteString(stdhtml.EscapeString(n.Data))
 		return
 	}
 
@@ -232,7 +233,7 @@ func processNodeRecursive(n *html.Node, sb *strings.Builder) {
 			sb.WriteString(" ")
 			sb.WriteString(attr.Key)
 			sb.WriteString(`="`)
-			sb.WriteString(html.EscapeString(attr.Val))
+			sb.WriteString(stdhtml.EscapeString(attr.Val))
 			sb.WriteString(`"`)
 		}
 		sb.WriteString(">")

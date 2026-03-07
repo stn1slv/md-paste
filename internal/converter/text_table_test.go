@@ -3,8 +3,8 @@ package converter
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stn1slv/md-paste/internal/models"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestExtractTableFromText(t *testing.T) {

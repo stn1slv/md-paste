@@ -17,7 +17,7 @@ func ExtractTableFromText(text string) (models.Table, bool) {
 	}
 
 	table := parseTextToRows(lines)
-	
+
 	if !isTabular(table) {
 		return models.Table{}, false
 	}
@@ -45,7 +45,7 @@ func parseTextToRows(lines []string) models.Table {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		
+
 		parts := colSeparator.Split(line, -1)
 		var cleanParts []string
 		for _, p := range parts {
