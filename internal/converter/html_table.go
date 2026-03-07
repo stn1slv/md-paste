@@ -60,6 +60,7 @@ func findTableRows(tableNode *html.Node) []*html.Node {
 	return rows
 }
 
+// ParseTable parses an HTML table node and extracts it into a Table model.
 func ParseTable(tableNode *html.Node) models.Table {
 	var table models.Table
 	rows := findTableRows(tableNode)
