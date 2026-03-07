@@ -2,6 +2,7 @@ package converter
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stn1slv/md-paste/internal/models"
@@ -26,15 +27,17 @@ func BenchmarkRenderTable(b *testing.B) {
 }
 
 func BenchmarkExtractTableFromHTML(b *testing.B) {
-	html := "<table>"
+	var sb strings.Builder
+	sb.WriteString("<table>")
 	for i := 0; i < 10; i++ {
-		html += "<tr>"
+		sb.WriteString("<tr>")
 		for j := 0; j < 10; j++ {
-			html += fmt.Sprintf("<td>Data %d-%d</td>", i, j)
+			sb.WriteString(fmt.Sprintf("<td>Data %d-%d</td>", i, j))
 		}
-		html += "</tr>"
+		sb.WriteString("</tr>")
 	}
-	html += "</table>"
+	sb.WriteString("</table>")
+	html := sb.String()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

@@ -22,7 +22,7 @@ func Convert(content models.ClipboardContent) (models.MarkdownDocument, error) {
 	if content.RawHTML != "" {
 		hasTable := strings.Contains(strings.ToLower(content.RawHTML), "<table")
 		if !hasTable && content.PlainText != "" {
-			if doc, ok := tryTextTableConversion(content.PlainText); ok {
+			if doc, ok := tryTextTableConversion(content.PlainText, content.ContentType); ok {
 				return doc, nil
 			}
 		}
@@ -31,7 +31,7 @@ func Convert(content models.ClipboardContent) (models.MarkdownDocument, error) {
 
 	// 2. Try layout-aware text table extraction as a secondary fallback
 	if content.PlainText != "" {
-		if doc, ok := tryTextTableConversion(content.PlainText); ok {
+		if doc, ok := tryTextTableConversion(content.PlainText, content.ContentType); ok {
 			return doc, nil
 		}
 	}
@@ -43,11 +43,11 @@ func Convert(content models.ClipboardContent) (models.MarkdownDocument, error) {
 	}, nil
 }
 
-func tryTextTableConversion(plainText string) (models.MarkdownDocument, bool) {
+func tryTextTableConversion(plainText string, originalType models.ContentType) (models.MarkdownDocument, bool) {
 	if table, ok := ExtractTableFromText(plainText); ok {
 		return models.MarkdownDocument{
 			Content:    RenderTable(table),
-			SourceType: models.ContentTypePlainText,
+			SourceType: originalType,
 		}, true
 	}
 	return models.MarkdownDocument{}, false

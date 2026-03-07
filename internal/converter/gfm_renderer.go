@@ -14,20 +14,30 @@ func RenderTable(table models.Table) string {
 
 	var sb strings.Builder
 
-	// GFM requires a header row and a separator row.
-	// We treat the first row (index 0) as the header to preserve original row order,
-	// ignoring IsHeader if it's not the first row, to avoid reordering.
-	headerRow := table.Rows[0]
+	// Prefer the first row explicitly marked as a header; if none is marked,
+	// fall back to treating the first row (index 0) as the header.
+	headerIndex := 0
+	for i, row := range table.Rows {
+		if row.IsHeader {
+			headerIndex = i
+			break
+		}
+	}
+
+	headerRow := table.Rows[headerIndex]
 	renderRow(&sb, headerRow)
 	sb.WriteString("\n")
 
 	// Render separator row based on header alignment
 	renderSeparator(&sb, headerRow)
 
-	// Render all other rows
-	for i := 1; i < len(table.Rows); i++ {
+	// Render all other rows in their original order.
+	for i, row := range table.Rows {
+		if i == headerIndex {
+			continue
+		}
 		sb.WriteString("\n")
-		renderRow(&sb, table.Rows[i])
+		renderRow(&sb, row)
 	}
 
 	return sb.String()
