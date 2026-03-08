@@ -115,7 +115,7 @@ func parseRow(tr *html.Node, table *models.Table, converter *htmltomarkdown.Conv
 	return row
 }
 
-func getSpans(n *html.Node) (rowSpan int, colSpan int) {
+func getSpans(n *html.Node) (rowSpan, colSpan int) {
 	rowSpan, colSpan = 1, 1
 	for _, attr := range n.Attr {
 		if attr.Key == "rowspan" {

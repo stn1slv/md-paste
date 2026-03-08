@@ -44,7 +44,7 @@ func TestStdoutFlow(t *testing.T) {
 	binDir := t.TempDir()
 	binPath := filepath.Join(binDir, "md-paste")
 	//nolint:gosec // Testing execution of built binary
-	cmdBuild := exec.Command("go", "build", "-o", binPath, "../../cmd/md-paste")
+	cmdBuild := exec.CommandContext(t.Context(), "go", "build", "-o", binPath, "../../cmd/md-paste")
 	err = cmdBuild.Run()
 	require.NoError(t, err, "failed to build binary")
 
@@ -59,7 +59,7 @@ func TestStdoutFlow(t *testing.T) {
 
 	// 3. Run the binary with --stdout
 	//nolint:gosec // Testing execution of built binary
-	cmdRun := exec.Command(binPath, "--stdout")
+	cmdRun := exec.CommandContext(t.Context(), binPath, "--stdout")
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmdRun.Stdout = &stdout
@@ -81,7 +81,7 @@ func TestStdoutFlow(t *testing.T) {
 	require.NoError(t, err)
 
 	//nolint:gosec // Testing execution of built binary
-	cmdRunNormal := exec.Command(binPath)
+	cmdRunNormal := exec.CommandContext(t.Context(), binPath)
 	var stdoutNormal bytes.Buffer
 	cmdRunNormal.Stdout = &stdoutNormal
 	err = cmdRunNormal.Run()

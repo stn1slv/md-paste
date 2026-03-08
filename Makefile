@@ -19,7 +19,7 @@ lint: ## Run linter
 	golangci-lint run
 
 format: ## Format code
-	gofumpt -w .
+	gofumpt -w -extra .
 
 build: ## Build the application
 	go build -o bin/md-paste ./cmd/md-paste
