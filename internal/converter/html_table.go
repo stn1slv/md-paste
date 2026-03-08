@@ -55,6 +55,8 @@ func findTableRows(tableNode *html.Node) []*html.Node {
 					rows = append(rows, rc)
 				}
 			}
+		default:
+			// No additional action for other tags
 		}
 	}
 

@@ -1,26 +1,32 @@
-.PHONY: setup test test-integration lint format build run upgrade-deps
+.DEFAULT_GOAL := help
 
-setup:
+.PHONY: help setup test test-integration lint format build run upgrade-deps
+
+help: ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+setup: ## Install dependencies and tools
+	brew install gofumpt golangci-lint
 	go mod tidy
 
-test:
+test: ## Run unit tests
 	go test ./...
 
-test-integration:
+test-integration: ## Run integration tests
 	MD_PASTE_E2E=1 go test ./...
 
-lint:
-	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.6 run
+lint: ## Run linter
+	golangci-lint run
 
-format:
-	go run mvdan.cc/gofumpt@v0.7.0 -w .
+format: ## Format code
+	gofumpt -w .
 
-build:
+build: ## Build the application
 	go build -o bin/md-paste ./cmd/md-paste
 
-run:
+run: ## Run the application
 	go run ./cmd/md-paste
 
-upgrade-deps:
+upgrade-deps: ## Upgrade dependencies
 	go get -u ./...
 	go mod tidy

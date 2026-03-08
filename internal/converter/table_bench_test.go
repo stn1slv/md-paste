@@ -32,7 +32,7 @@ func BenchmarkExtractTableFromHTML(b *testing.B) {
 	for i := 0; i < 10; i++ {
 		sb.WriteString("<tr>")
 		for j := 0; j < 10; j++ {
-			sb.WriteString(fmt.Sprintf("<td>Data %d-%d</td>", i, j))
+			_, _ = fmt.Fprintf(&sb, "<td>Data %d-%d</td>", i, j)
 		}
 		sb.WriteString("</tr>")
 	}
