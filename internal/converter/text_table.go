@@ -26,19 +26,30 @@ func ExtractTableFromText(text string) (models.Table, bool) {
 	return table, true
 }
 
+var listMarker = regexp.MustCompile(`^(\d+[\.\)]|[-*•+])\s*$`)
+
 func isTabular(table models.Table) bool {
 	if len(table.Rows) < 2 {
 		return false
 	}
 
 	multiColRows := 0
+	listLikeRows := 0
 	for _, row := range table.Rows {
 		if len(row.Cells) > 1 {
 			multiColRows++
+			if len(row.Cells) == 2 && listMarker.MatchString(row.Cells[0].Content) {
+				listLikeRows++
+			}
 		}
 	}
 
-	// Heuristic: Majority of rows should have multiple columns to be considered a table.
+	// Heuristic 1: If it's just a 2-column list, don't treat it as a table.
+	if listLikeRows > 0 && listLikeRows*2 >= multiColRows {
+		return false
+	}
+
+	// Heuristic 2: Majority of rows should have multiple columns to be considered a table.
 	// This filters out regular text blocks.
 	return multiColRows*2 >= len(table.Rows)
 }

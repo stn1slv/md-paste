@@ -130,6 +130,46 @@ func TestExtractTableFromText(t *testing.T) {
 			text:  "Just some text\nOn multiple lines",
 			found: false,
 		},
+		{
+			name:  "numbered list with tabs (should NOT be a table)",
+			text:  "1.\tFirst item\n2.\tSecond item",
+			found: false,
+		},
+		{
+			name:  "bullet list with tabs (should NOT be a table)",
+			text:  "•\tFirst item\n•\tSecond item",
+			found: false,
+		},
+		{
+			name: "numbered 3-column table (SHOULD still be a table)",
+			text: "No.\tItem\tPrice\n1.\tApple\t$1\n2.\tBanana\t$2",
+			expected: models.Table{
+				Rows: []models.Row{
+					{
+						Cells: []models.Cell{
+							{Content: "No.", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "Item", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "Price", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+						},
+					},
+					{
+						Cells: []models.Cell{
+							{Content: "1.", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "Apple", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "$1", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+						},
+					},
+					{
+						Cells: []models.Cell{
+							{Content: "2.", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "Banana", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "$2", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+						},
+					},
+				},
+			},
+			found: true,
+		},
 	}
 
 	for _, tt := range tests {
