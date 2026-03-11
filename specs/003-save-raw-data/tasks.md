@@ -49,15 +49,16 @@ description: "Task list for the save-raw-data feature implementation"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T005 [P] [US1] Create unit tests for `saveRawContent` logic in `internal/cli/root_test.go`
-- [ ] T006 [P] [US1] Add test case for directory path error handling in `internal/cli/root_test.go`
+- [ ] T005 [P] [US1] Create unit tests for `SaveRaw` logic in `internal/clipboard/exporter_test.go`
+- [ ] T006 [P] [US1] Add test cases for directory paths and permission denial errors in `internal/clipboard/exporter_test.go`
 
 ### Implementation for User Story 1
 
-- [ ] T007 [US1] Implement `saveRawContent(path string, content models.ClipboardContent) error` helper in `internal/cli/root.go`
-- [ ] T008 [US1] Add directory check using `os.Stat` in `saveRawContent` helper in `internal/cli/root.go`
-- [ ] T009 [US1] Implement content priority (HTML > PlainText) and `os.WriteFile` in `saveRawContent` helper in `internal/cli/root.go`
-- [ ] T010 [US1] Integrate `saveRawContent` call into `runPaste` flow before conversion in `internal/cli/root.go`
+- [ ] T007 [US1] Implement `SaveRaw(path string, content models.ClipboardContent) error` helper in `internal/clipboard/exporter.go`
+- [ ] T008 [US1] Add directory check using `os.Stat` in `internal/clipboard/exporter.go`
+- [ ] T009 [US1] Implement content priority (HTML > PlainText) and `os.WriteFile` in `internal/clipboard/exporter.go`
+- [ ] T010 [US1] Ensure `runPaste` in `internal/cli/root.go` skips `SaveRaw` if clipboard is empty (FR-004)
+- [ ] T011 [US1] Integrate `exporter.SaveRaw` call into `runPaste` flow before conversion in `internal/cli/root.go`
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently.
 
@@ -71,12 +72,12 @@ description: "Task list for the save-raw-data feature implementation"
 
 ### Tests for User Story 2
 
-- [ ] T011 [P] [US2] Add integration test for combined `--save-raw` and `--stdout` usage in `tests/integration/stdout_flow_test.go`
+- [ ] T012 [P] [US2] Add integration test for combined `--save-raw` and `--stdout` usage in `tests/integration/stdout_flow_test.go`
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] Verify `runPaste` flow correctly handles both `saveRawFlag` and `stdoutFlag` in `internal/cli/root.go`
-- [ ] T013 [US2] Ensure errors in `saveRawContent` correctly terminate the pipeline even when `--stdout` is used in `internal/cli/root.go`
+- [ ] T013 [US2] Verify `runPaste` flow correctly handles both `saveRawFlag` and `stdoutFlag` in `internal/cli/root.go`
+- [ ] T014 [US2] Ensure errors in `exporter.SaveRaw` correctly terminate the pipeline even when `--stdout` is used in `internal/cli/root.go`
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently.
 
@@ -86,7 +87,6 @@ description: "Task list for the save-raw-data feature implementation"
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T014 [US1] Ensure `runPaste` skips `saveRawContent` if clipboard is empty in `internal/cli/root.go`
 - [ ] T015 Verify silence-on-success behavior when using `--save-raw` without `--stdout` in `internal/cli/root.go`
 - [ ] T016 [P] Run `make lint` and `make test` to validate implementation across the project
 - [ ] T017 [P] Run `specs/003-save-raw-data/quickstart.md` validation scenarios
@@ -110,8 +110,8 @@ description: "Task list for the save-raw-data feature implementation"
 ### Parallel Opportunities
 
 - T002 (Setup) can run in parallel with T001.
-- T005, T006 (US1 Tests) can run in parallel with implementation tasks if they are in different files, but here they are in `root_test.go`. However, they can be developed in parallel with T007-T010 (implementation in `root.go`).
-- T011 (US2 Integration Test) can run in parallel with US1 implementation once the foundation is ready.
+- T005, T006 (US1 Tests) can run in parallel with implementation tasks T007-T009.
+- T012 (US2 Integration Test) can run in parallel with US1 implementation once the foundation is ready.
 - All tasks marked [P] can run in parallel.
 
 ---
@@ -120,8 +120,8 @@ description: "Task list for the save-raw-data feature implementation"
 
 ```bash
 # Launch tests and implementation for User Story 1 together:
-Task: "Create unit tests for saveRawContent logic in internal/cli/root_test.go"
-Task: "Implement saveRawContent(path string, content models.ClipboardContent) error helper in internal/cli/root.go"
+Task: "Create unit tests for SaveRaw logic in internal/clipboard/exporter_test.go"
+Task: "Implement SaveRaw(path string, content models.ClipboardContent) error helper in internal/clipboard/exporter.go"
 ```
 
 ---
