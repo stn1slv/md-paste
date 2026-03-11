@@ -12,7 +12,11 @@ import (
 // It returns an error if the path is a directory or if the file cannot be written.
 func SaveRaw(path string, content models.ClipboardContent) error {
 	info, err := os.Stat(path)
-	if err == nil && info.IsDir() {
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return errors.Wrap(err, "failed to stat path")
+		}
+	} else if info.IsDir() {
 		return errors.New("'%s' is a directory", path)
 	}
 
@@ -29,7 +33,7 @@ func SaveRaw(path string, content models.ClipboardContent) error {
 
 	//nolint:gosec // File is intended to be readable by others (0644)
 	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return errors.Wrap(err, "failed to write file")
+		return errors.Wrap(err, "failed to write file '%s'", path)
 	}
 
 	return nil

@@ -28,7 +28,7 @@ md-paste -r original.html -s > result.md
 If you provide a directory path instead of a file path, the command will fail with a descriptive error:
 ```bash
 md-paste -r /tmp
-# Error: '/tmp' is a directory
+# Error: failed to save raw content: '/tmp' is a directory
 ```
 
 If the clipboard is empty, no file will be created, and the command will exit silently (following the project's silence-on-empty policy).

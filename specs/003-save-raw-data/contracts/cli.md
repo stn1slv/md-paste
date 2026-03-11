@@ -24,7 +24,7 @@ md-paste -r source.txt -s
 # If directory exists, should fail with error
 mkdir results
 md-paste -r results
-# Output: Error: 'results' is a directory
+# Output: Error: failed to save raw content: 'results' is a directory
 ```
 
 #### Exit Codes

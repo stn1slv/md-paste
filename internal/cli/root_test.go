@@ -17,8 +17,8 @@ func TestRootCmdFlags(t *testing.T) {
 	})
 
 	// Reset pflag values before parsing, as ParseFlags accumulates
-	_ = rootCmd.Flags().Set("stdout", "false")
-	_ = rootCmd.Flags().Set("save-raw", "")
+	require.NoError(t, rootCmd.Flags().Set("stdout", "false"))
+	require.NoError(t, rootCmd.Flags().Set("save-raw", ""))
 
 	cmd := rootCmd
 	// Only parse flags to avoid executing the actual clipboard logic
