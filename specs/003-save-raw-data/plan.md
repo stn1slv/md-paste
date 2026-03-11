@@ -17,10 +17,10 @@
 ## Constitution Check
 
 - [x] **I. Unix Philosophy**: Feature enables composability by saving raw source for audit/debug.
-- [x] **II. Idiomatic Go**: Logic will be kept in `internal/cli/root.go` or a dedicated package.
+- [x] **II. Idiomatic Go**: Business logic is separated into `internal/clipboard/exporter.go`.
 - [x] **III. Robust CLI**: Uses `cobra` for the new flag, follows established silence-on-success.
-- [x] **IV. Quality Through TDD**: Unit tests will verify file creation and content.
-- [x] **V. Idiomatic Error Handling**: File system errors will be wrapped with context.
+- [x] **IV. Quality Through TDD**: Unit tests in `internal/clipboard/exporter_test.go` verify file creation.
+- [x] **V. Idiomatic Error Handling**: File system errors are wrapped with context.
 
 ## Phase 0: Research & Outline
 
@@ -40,25 +40,26 @@
 - Add `saveRawFlag` string variable to `internal/cli/root.go`.
 - Bind `--save-raw` / `-r` flag in `init()`.
 
-### Step 2: Implement File Saving Logic
-- Create a helper function `saveRawContent(path string, content models.ClipboardContent) error`.
-- Implement `os.Stat` check for directory.
+### Step 2: Implement Export Logic
+- Create `internal/clipboard/exporter.go`.
+- Implement `SaveRaw(path string, content models.ClipboardContent) error`.
+- Include `os.Stat` check for directory and permission validation.
 - Implement priority logic: `RawHTML` > `PlainText`.
 - Call `os.WriteFile` with `0644` permissions.
 
 ### Step 3: Integrate into `runPaste`
-- Call `saveRawContent` after `clipboardRead()` and before `converter.Convert()`.
-- Ensure it only runs if `saveRawFlag != ""`.
-- Ensure errors are handled according to the spec (return error and exit).
+- In `internal/cli/root.go`, call `exporter.SaveRaw` after `clipboardRead()`.
+- Ensure it only runs if `saveRawFlag != ""` AND the clipboard is not empty (`FR-004`).
+- Ensure errors are handled according to the spec (return wrapped error and exit).
 
 ## Phase 3: Verification Plan
 
 ### Unit Tests
-- Test `saveRawContent` with various paths (existing file, new file, directory, unwritable path).
-- Verify file content matches input `ClipboardContent`.
-- Mock filesystem using a temporary directory for tests.
+- Create `internal/clipboard/exporter_test.go`.
+- Test `SaveRaw` with various paths (existing file, new file, directory, unwritable path).
+- Verify file content matches input `ClipboardContent` priority.
 
 ### Integration Tests
-- Verify `--save-raw` works correctly alongside `--stdout`.
+- Update `tests/integration/stdout_flow_test.go` to verify `--save-raw` alongside `--stdout`.
 - Verify silence-on-success behavior.
-- Verify error output when providing a directory path.
+- Verify error output when providing an invalid path.
