@@ -88,4 +88,23 @@ func TestStdoutFlow(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Empty(t, stdoutNormal.String(), "normal flow should be silent")
+
+	// 6. Test combined --save-raw and --stdout
+	rawFile := filepath.Join(binDir, "raw.html")
+	rawHTML := "<html><body><h1>Combined</h1></body></html>"
+	err = clipboard.WriteMarkdown(rawHTML)
+	require.NoError(t, err)
+
+	//nolint:gosec // Testing execution of built binary
+	cmdCombined := exec.CommandContext(t.Context(), binPath, "--stdout", "--save-raw", rawFile)
+	var stdoutCombined bytes.Buffer
+	cmdCombined.Stdout = &stdoutCombined
+	err = cmdCombined.Run()
+	require.NoError(t, err)
+
+	assert.Contains(t, stdoutCombined.String(), "Combined")
+	//nolint:gosec // Integration test reads from known temporary path
+	data, err := os.ReadFile(rawFile)
+	require.NoError(t, err)
+	assert.Equal(t, rawHTML, string(data))
 }

@@ -21,8 +21,8 @@ description: "Task list for the save-raw-data feature implementation"
 
 **Purpose**: Project initialization and basic structure verification
 
-- [ ] T001 Verify `ClipboardContent` model in `internal/models/models.go` supports `RawHTML` and `PlainText`
-- [ ] T002 [P] Review `internal/errors/errors.go` for appropriate wrapping of filesystem errors
+- [X] T001 Verify `ClipboardContent` model in `internal/models/models.go` supports `RawHTML` and `PlainText`
+- [X] T002 [P] Review `internal/errors/errors.go` for appropriate wrapping of filesystem errors
 
 ---
 
@@ -32,8 +32,8 @@ description: "Task list for the save-raw-data feature implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T003 Define `saveRawFlag` string variable for flag binding in `internal/cli/root.go`
-- [ ] T004 Bind `--save-raw` / `-r` flag to `saveRawFlag` in `init()` in `internal/cli/root.go`
+- [X] T003 Define `saveRawFlag` string variable for flag binding in `internal/cli/root.go`
+- [X] T004 Bind `--save-raw` / `-r` flag to `saveRawFlag` in `init()` in `internal/cli/root.go`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -49,16 +49,16 @@ description: "Task list for the save-raw-data feature implementation"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T005 [P] [US1] Create unit tests for `SaveRaw` logic in `internal/clipboard/exporter_test.go`
-- [ ] T006 [P] [US1] Add test cases for directory paths and permission denial errors in `internal/clipboard/exporter_test.go`
+- [X] T005 [P] [US1] Create unit tests for `SaveRaw` logic in `internal/clipboard/exporter_test.go`
+- [X] T006 [P] [US1] Add test cases for directory paths and permission denial errors in `internal/clipboard/exporter_test.go`
 
 ### Implementation for User Story 1
 
-- [ ] T007 [US1] Implement `SaveRaw(path string, content models.ClipboardContent) error` helper in `internal/clipboard/exporter.go`
-- [ ] T008 [US1] Add directory check using `os.Stat` in `internal/clipboard/exporter.go`
-- [ ] T009 [US1] Implement content priority (HTML > PlainText) and `os.WriteFile` in `internal/clipboard/exporter.go`
-- [ ] T010 [US1] Ensure `runPaste` in `internal/cli/root.go` skips `SaveRaw` if clipboard is empty (FR-004)
-- [ ] T011 [US1] Integrate `exporter.SaveRaw` call into `runPaste` flow before conversion in `internal/cli/root.go`
+- [X] T007 [US1] Implement `SaveRaw(path string, content models.ClipboardContent) error` helper in `internal/clipboard/exporter.go`
+- [X] T008 [US1] Add directory check using `os.Stat` in `internal/clipboard/exporter.go`
+- [X] T009 [US1] Implement content priority (HTML > PlainText) and `os.WriteFile` in `internal/clipboard/exporter.go`
+- [X] T010 [US1] Ensure `runPaste` in `internal/cli/root.go` skips `SaveRaw` if clipboard is empty (FR-004)
+- [X] T011 [US1] Integrate `exporter.SaveRaw` call into `runPaste` flow before conversion in `internal/cli/root.go`
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently.
 
@@ -72,12 +72,12 @@ description: "Task list for the save-raw-data feature implementation"
 
 ### Tests for User Story 2
 
-- [ ] T012 [P] [US2] Add integration test for combined `--save-raw` and `--stdout` usage in `tests/integration/stdout_flow_test.go`
+- [X] T012 [P] [US2] Add integration test for combined `--save-raw` and `--stdout` usage in `tests/integration/stdout_flow_test.go`
 
 ### Implementation for User Story 2
 
-- [ ] T013 [US2] Verify `runPaste` flow correctly handles both `saveRawFlag` and `stdoutFlag` in `internal/cli/root.go`
-- [ ] T014 [US2] Ensure errors in `exporter.SaveRaw` correctly terminate the pipeline even when `--stdout` is used in `internal/cli/root.go`
+- [X] T013 [US2] Verify `runPaste` flow correctly handles both `saveRawFlag` and `stdoutFlag` in `internal/cli/root.go`
+- [X] T014 [US2] Ensure errors in `exporter.SaveRaw` correctly terminate the pipeline even when `--stdout` is used in `internal/cli/root.go`
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently.
 
@@ -87,9 +87,9 @@ description: "Task list for the save-raw-data feature implementation"
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T015 Verify silence-on-success behavior when using `--save-raw` without `--stdout` in `internal/cli/root.go`
-- [ ] T016 [P] Run `make lint` and `make test` to validate implementation across the project
-- [ ] T017 [P] Run `specs/003-save-raw-data/quickstart.md` validation scenarios
+- [X] T015 Verify silence-on-success behavior when using `--save-raw` without `--stdout` in `internal/cli/root.go`
+- [X] T016 [P] Run `make lint` and `make test` to validate implementation across the project
+- [X] T017 [P] Run `specs/003-save-raw-data/quickstart.md` validation scenarios
 
 ---
 
