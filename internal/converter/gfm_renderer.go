@@ -57,6 +57,7 @@ func renderSeparator(sb *strings.Builder, headerRow models.Row) {
 	sb.WriteString("|")
 	for _, cell := range headerRow.Cells {
 		sb.WriteString(" ")
+		//nolint:exhaustive // Default handles AlignNone and any future alignments
 		switch cell.Alignment {
 		case models.AlignLeft:
 			sb.WriteString(":---")

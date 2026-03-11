@@ -23,6 +23,18 @@ linters:
     - nilerr
     - forcetypeassert
     - makezero
+    - exhaustive
+    - goconst
+    - misspell
+    - testifylint
+
+formatters:
+  enable:
+    - gofumpt
+  settings:
+    gofumpt:
+      module-path: github.com/stn1slv/md-paste
+      extra-rules: true
 
 linters-settings:
   revive:
@@ -35,14 +47,13 @@ linters-settings:
       - name: if-return
       - name: var-naming
       - name: package-comments
-
-formatters:
-  enable:
-    - gofumpt
-  settings:
-    gofumpt:
-      module-path: github.com/stn1slv/md-paste
-      extra-rules: true
+  exhaustive:
+    default-signifies-exhaustive: true
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  testifylint:
+    enable-all: true
 
 issues:
   exclude-use-default: false
