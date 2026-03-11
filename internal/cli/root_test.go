@@ -44,6 +44,10 @@ func TestTableConversionIntegration(t *testing.T) {
 		rootCmd.SetOut(oldOut)
 	})
 
+	// Ensure this test does not write raw HTML files to disk.
+	// It depends on saveRawFlag being empty, so make that explicit.
+	saveRawFlag = ""
+
 	// Set up mock content: A simple HTML table
 	mockHTML := "<table><tr><th>H1</th></tr><tr><td>D1</td></tr></table>"
 	clipboardRead = func() (models.ClipboardContent, error) {

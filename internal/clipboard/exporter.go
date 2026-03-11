@@ -14,7 +14,7 @@ func SaveRaw(path string, content models.ClipboardContent) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			return errors.Wrap(err, "failed to stat path")
+			return errors.Wrap(err, "failed to stat path '%s'", path)
 		}
 	} else if info.IsDir() {
 		return errors.New("'%s' is a directory", path)
