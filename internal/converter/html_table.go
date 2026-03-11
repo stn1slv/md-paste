@@ -46,6 +46,7 @@ func findTableRows(tableNode *html.Node) []*html.Node {
 			continue
 		}
 
+		//nolint:exhaustive // We only care about table-specific atoms; default handles the rest
 		switch child.DataAtom {
 		case atom.Tr:
 			rows = append(rows, child)

@@ -10,15 +10,23 @@ import (
 )
 
 func TestRootCmdFlags(t *testing.T) {
-	// Reset flag after testing
-	t.Cleanup(func() { stdoutFlag = false })
+	// Reset flags after testing
+	t.Cleanup(func() { 
+		stdoutFlag = false 
+		saveRawFlag = ""
+	})
+
+	// Reset pflag values before parsing, as ParseFlags accumulates
+	require.NoError(t, rootCmd.Flags().Set("stdout", "false"))
+	require.NoError(t, rootCmd.Flags().Set("save-raw", ""))
 
 	cmd := rootCmd
 	// Only parse flags to avoid executing the actual clipboard logic
-	err := cmd.ParseFlags([]string{"--stdout"})
+	err := cmd.ParseFlags([]string{"--stdout", "--save-raw", "test.html"})
 	require.NoError(t, err)
 
 	assert.True(t, stdoutFlag)
+	assert.Equal(t, "test.html", saveRawFlag)
 }
 
 func TestTableConversionIntegration(t *testing.T) {
@@ -26,13 +34,19 @@ func TestTableConversionIntegration(t *testing.T) {
 	oldRead := clipboardRead
 	oldWrite := clipboardWrite
 	oldStdout := stdoutFlag
+	oldSaveRaw := saveRawFlag
 	oldOut := rootCmd.OutOrStdout()
 	t.Cleanup(func() {
 		clipboardRead = oldRead
 		clipboardWrite = oldWrite
 		stdoutFlag = oldStdout
+		saveRawFlag = oldSaveRaw
 		rootCmd.SetOut(oldOut)
 	})
+
+	// Ensure this test does not write raw HTML files to disk.
+	// It depends on saveRawFlag being empty, so make that explicit.
+	saveRawFlag = ""
 
 	// Set up mock content: A simple HTML table
 	mockHTML := "<table><tr><th>H1</th></tr><tr><td>D1</td></tr></table>"

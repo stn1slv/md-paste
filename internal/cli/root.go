@@ -33,7 +33,8 @@ By default, it writes the converted Markdown back to the clipboard.`,
 	}
 
 	// Flags
-	stdoutFlag bool
+	stdoutFlag  bool
+	saveRawFlag string
 
 	// Injected dependencies for testing
 	clipboardRead  = clipboard.Read
@@ -42,6 +43,7 @@ By default, it writes the converted Markdown back to the clipboard.`,
 
 func init() {
 	rootCmd.Flags().BoolVarP(&stdoutFlag, "stdout", "s", false, "Print converted Markdown to stdout instead of clipboard")
+	rootCmd.Flags().StringVarP(&saveRawFlag, "save-raw", "r", "", "File path where raw clipboard data will be saved")
 }
 
 // Execute is the main entry point for the CLI.
@@ -58,6 +60,12 @@ func runPaste(cmd *cobra.Command, _ []string) error {
 	if content.ContentType == models.ContentTypeNone {
 		// Silence-on-Empty: FR-003.1 says exit silently and perform no write.
 		return nil
+	}
+
+	if saveRawFlag != "" {
+		if err := clipboard.SaveRaw(saveRawFlag, content); err != nil {
+			return errors.Wrap(err, "failed to save raw content")
+		}
 	}
 
 	doc, err := converter.Convert(content)
