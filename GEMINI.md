@@ -35,6 +35,7 @@ tests/      # Additional integration tests
 - Adhere to `golangci-lint` rules defined in `.golangci.yml`.
 
 ## Recent Changes
+- 003-save-raw-data: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 - 002-table-support: Added Go 1.26+ + `golang.org/x/net/html`
 
 - `001-paste-markdown`: Initialized Go 1.26+ project with `cobra`, `html-to-markdown`, `testify`, automated releases via GoReleaser, and native macOS CGO clipboard integration.
