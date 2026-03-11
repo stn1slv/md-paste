@@ -98,9 +98,11 @@ func TestStdoutFlow(t *testing.T) {
 	//nolint:gosec // Testing execution of built binary
 	cmdCombined := exec.CommandContext(t.Context(), binPath, "--stdout", "--save-raw", rawFile)
 	var stdoutCombined bytes.Buffer
+	var stderrCombined bytes.Buffer
 	cmdCombined.Stdout = &stdoutCombined
+	cmdCombined.Stderr = &stderrCombined
 	err = cmdCombined.Run()
-	require.NoError(t, err)
+	require.NoErrorf(t, err, "combined command failed, stderr: %s", stderrCombined.String())
 
 	assert.Contains(t, stdoutCombined.String(), "Combined")
 	//nolint:gosec // Integration test reads from known temporary path

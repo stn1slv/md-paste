@@ -35,7 +35,7 @@ tests/      # Additional integration tests
 - Adhere to `golangci-lint` rules defined in `.golangci.yml`.
 
 ## Recent Changes
-- 003-save-raw-data: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
+- 003-save-raw-data: Implemented optional `--save-raw` flag to persist original clipboard HTML/PlainText to file. Added `internal/clipboard/exporter.go` for persistence logic.
 - 002-table-support: Added Go 1.26+ + `golang.org/x/net/html`
 
 - `001-paste-markdown`: Initialized Go 1.26+ project with `cobra`, `html-to-markdown`, `testify`, automated releases via GoReleaser, and native macOS CGO clipboard integration.
@@ -78,5 +78,10 @@ tests/      # Additional integration tests
 - **Issue:** Using `fmt.Println` to output the `--stdout` result broke Cobra's stream redirection, making CLI testing extremely difficult and potentially breaking embedded use cases.
 - **Root Cause:** Hardcoding global standard streams rather than relying on the command context.
 - **Prevention Rule:** Always use `fmt.Fprintln(cmd.OutOrStdout(), ...)` or `cmd.Println(...)` within Cobra `RunE` functions to respect internal stream overrides.
+
+### ⚠️ `gofumpt` as Formatter in `golangci-lint`
+- **Issue:** Attempting to enable `gofumpt` in the `linters` section of `.golangci.yml` fails with an error: `can't load config: gofumpt is a formatter`.
+- **Root Cause:** Certain versions of `golangci-lint` strictly categorize `gofumpt` as a formatter rather than a linter.
+- **Prevention Rule:** Always place `gofumpt` configuration under the `formatters` block in `.golangci.yml` (if supported) or rely on `make format` to pre-format code before running the linter.
 
 <!-- MANUAL ADDITIONS END -->
