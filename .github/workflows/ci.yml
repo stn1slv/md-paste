@@ -27,7 +27,9 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
+          # Pinned: requires a binary built with go1.26 to match go.mod.
+          # v2.12.1 is built with go1.26.x; bump as new releases ship.
+          version: v2.12.1
           args: --timeout=5m
 
   test-cross-platform:

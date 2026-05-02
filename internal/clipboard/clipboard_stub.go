@@ -17,7 +17,7 @@ func Read() (models.ClipboardContent, error) {
 }
 
 // WriteMarkdown returns an error on non-macOS platforms.
-func WriteMarkdown(text string) error {
+func WriteMarkdown(_ string) error {
 	return errUnsupported
 }
 
