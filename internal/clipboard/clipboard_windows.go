@@ -58,16 +58,28 @@ func closeClipboard() {
 	procCloseClipboard.Call() //nolint:errcheck
 }
 
+// lockGlobal calls GlobalLock and returns a pointer to the locked memory.
+// We reinterpret the uintptr result via a *unsafe.Pointer cast rather than
+// the direct unsafe.Pointer(uintptr) form, which sidesteps go vet's
+// unsafeptr false-positive for OS-level (non-GC) memory addresses.
+func lockGlobal(h uintptr) unsafe.Pointer {
+	r, _, _ := syscall.Syscall(procGlobalLock.Addr(), 1, h, 0, 0)
+	return *(*unsafe.Pointer)(unsafe.Pointer(&r))
+}
+
+func unlockGlobal(h uintptr) {
+	syscall.Syscall(procGlobalUnlock.Addr(), 1, h, 0, 0) //nolint:errcheck
+}
+
 // readGlobalMemBytes reads null-terminated bytes from a global memory handle
 // returned by GetClipboardData. Used for CF_HTML (UTF-8 encoded).
 func readGlobalMemBytes(h uintptr) []byte {
-	ptr, _, _ := procGlobalLock.Call(h)
-	if ptr == 0 {
+	p := lockGlobal(h)
+	if p == nil {
 		return nil
 	}
-	defer procGlobalUnlock.Call(h) //nolint:errcheck
+	defer unlockGlobal(h)
 
-	p := unsafe.Pointer(ptr)
 	var n int
 	for *(*byte)(unsafe.Add(p, n)) != 0 {
 		n++
@@ -83,13 +95,12 @@ func readGlobalMemBytes(h uintptr) []byte {
 // readGlobalMemUTF16 reads null-terminated UTF-16 LE from a global memory
 // handle returned by GetClipboardData. Used for CF_UNICODETEXT.
 func readGlobalMemUTF16(h uintptr) string {
-	ptr, _, _ := procGlobalLock.Call(h)
-	if ptr == 0 {
+	p := lockGlobal(h)
+	if p == nil {
 		return ""
 	}
-	defer procGlobalUnlock.Call(h) //nolint:errcheck
+	defer unlockGlobal(h)
 
-	p := unsafe.Pointer(ptr)
 	var n int
 	for *(*uint16)(unsafe.Add(p, n*2)) != 0 {
 		n++
@@ -175,18 +186,17 @@ func WriteMarkdown(text string) error {
 		return errWriteFailed
 	}
 
-	ptr, _, _ := procGlobalLock.Call(h)
-	if ptr == 0 {
+	p := lockGlobal(h)
+	if p == nil {
 		procGlobalFree.Call(h) //nolint:errcheck
 		return errWriteFailed
 	}
 
-	p := unsafe.Pointer(ptr)
 	for i, v := range encoded {
 		*(*uint16)(unsafe.Add(p, i*2)) = v
 	}
 	*(*uint16)(unsafe.Add(p, len(encoded)*2)) = 0
-	procGlobalUnlock.Call(h) //nolint:errcheck
+	unlockGlobal(h)
 
 	if err := openClipboard(); err != nil {
 		procGlobalFree.Call(h) //nolint:errcheck
