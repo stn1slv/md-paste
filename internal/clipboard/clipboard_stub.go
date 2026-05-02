@@ -1,6 +1,6 @@
-//go:build !darwin
+//go:build !darwin && !windows
 
-// Package clipboard provides fallback clipboard integration for non-macOS systems.
+// Package clipboard provides fallback clipboard integration for unsupported platforms.
 package clipboard
 
 import (
@@ -9,7 +9,7 @@ import (
 	"github.com/stn1slv/md-paste/internal/models"
 )
 
-var errUnsupported = errors.New("unsupported platform: md-paste requires macOS")
+var errUnsupported = errors.New("unsupported platform: md-paste requires macOS or Windows")
 
 // Read returns an error on non-macOS platforms.
 func Read() (models.ClipboardContent, error) {
