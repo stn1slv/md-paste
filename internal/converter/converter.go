@@ -2,11 +2,12 @@
 package converter
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 
 	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/stn1slv/md-paste/internal/errors"
 	"github.com/stn1slv/md-paste/internal/models"
 )
 
@@ -79,7 +80,7 @@ func performStandardHTMLConversion(rawHTML string) (models.MarkdownDocument, err
 
 	markdown, err := converter.ConvertString(rawHTML)
 	if err != nil {
-		return models.MarkdownDocument{}, errors.Wrap(err, "failed to convert HTML to Markdown")
+		return models.MarkdownDocument{}, fmt.Errorf("failed to convert HTML to Markdown: %w", err)
 	}
 
 	return models.MarkdownDocument{

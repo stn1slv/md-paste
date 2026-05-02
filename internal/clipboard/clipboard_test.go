@@ -70,4 +70,15 @@ func TestClipboard_ReadWrite(t *testing.T) {
 		assert.Empty(t, content.PlainText)
 		assert.Empty(t, content.RawHTML)
 	})
+
+	// 3. Invalid UTF-8 is replaced with U+FFFD before reaching NSString.
+	t.Run("InvalidUTF8", func(t *testing.T) {
+		invalid := "ok\xff\xfetail"
+		err := WriteMarkdown(invalid)
+		require.NoError(t, err)
+
+		content, err := Read()
+		require.NoError(t, err)
+		assert.Equal(t, "ok��tail", content.PlainText)
+	})
 }

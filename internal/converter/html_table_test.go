@@ -120,6 +120,22 @@ func TestExtractTableFromHTML(t *testing.T) {
 			found: true,
 		},
 		{
+			name: "void elements in cells",
+			html: `<table><tr><td>Line1<br>Line2</td><td><img src="x.png" alt="x"></td></tr></table>`,
+			expected: models.Table{
+				HasHeader: false,
+				Rows: []models.Row{
+					{
+						Cells: []models.Cell{
+							{Content: "Line1\n\nLine2", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "![x](x.png)", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+						},
+					},
+				},
+			},
+			found: true,
+		},
+		{
 			name:  "no table found",
 			html:  `<div>No table here</div>`,
 			found: false,

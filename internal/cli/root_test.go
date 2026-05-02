@@ -11,8 +11,8 @@ import (
 
 func TestRootCmdFlags(t *testing.T) {
 	// Reset flags after testing
-	t.Cleanup(func() { 
-		stdoutFlag = false 
+	t.Cleanup(func() {
+		stdoutFlag = false
 		saveRawFlag = ""
 	})
 

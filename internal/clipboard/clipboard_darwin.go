@@ -43,13 +43,21 @@ int read_clipboard(char **html, char **plain) {
 	}
 }
 
-void write_clipboard(const char *text) {
+// Returns 1 on success, 0 if the bytes could not be decoded as UTF-8.
+int write_clipboard(const char *text) {
 	@autoreleasepool {
 		NSPasteboard *pb = [NSPasteboard generalPasteboard];
-		[pb clearContents];
 
 		NSString *str = [NSString stringWithUTF8String:text];
+		if (str == nil) {
+			// Defense in depth: Go-side already replaces invalid UTF-8,
+			// but never pass nil to setString: which would raise.
+			return 0;
+		}
+
+		[pb clearContents];
 		[pb setString:str forType:NSPasteboardTypeString];
+		return 1;
 	}
 }
 
@@ -63,12 +71,24 @@ void clear_clipboard() {
 import "C"
 
 import (
+	"errors"
+	"strings"
+	"unicode/utf8"
 	"unsafe"
 
 	"github.com/stn1slv/md-paste/internal/models"
 )
 
-const readFailure = 0
+const (
+	readFailure  = 0
+	writeFailure = 0
+)
+
+// utf8Replacement substitutes for any invalid UTF-8 byte sequence before
+// the string crosses the CGO boundary.
+const utf8Replacement = "�"
+
+var errWriteFailed = errors.New("clipboard write failed")
 
 // Read retrieves content from the macOS system clipboard.
 func Read() (models.ClipboardContent, error) {
@@ -108,11 +128,20 @@ func Read() (models.ClipboardContent, error) {
 }
 
 // WriteMarkdown writes the converted Markdown string back to the clipboard.
+// Invalid UTF-8 byte sequences are replaced with U+FFFD before crossing the
+// CGO boundary; otherwise NSString stringWithUTF8String: would return nil
+// and setString: would raise an Objective-C exception.
 func WriteMarkdown(text string) error {
+	if !utf8.ValidString(text) {
+		text = strings.ToValidUTF8(text, utf8Replacement)
+	}
+
 	cText := C.CString(text)
 	defer C.free(unsafe.Pointer(cText))
 
-	C.write_clipboard(cText)
+	if C.write_clipboard(cText) == writeFailure {
+		return errWriteFailed
+	}
 	return nil
 }
 

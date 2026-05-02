@@ -1,9 +1,9 @@
 package clipboard
 
 import (
+	"fmt"
 	"os"
 
-	"github.com/stn1slv/md-paste/internal/errors"
 	"github.com/stn1slv/md-paste/internal/models"
 )
 
@@ -14,10 +14,10 @@ func SaveRaw(path string, content models.ClipboardContent) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			return errors.Wrap(err, "failed to stat path '%s'", path)
+			return fmt.Errorf("failed to stat path %q: %w", path, err)
 		}
 	} else if info.IsDir() {
-		return errors.New("'%s' is a directory", path)
+		return fmt.Errorf("%q is a directory", path)
 	}
 
 	var data []byte
@@ -33,7 +33,7 @@ func SaveRaw(path string, content models.ClipboardContent) error {
 
 	//nolint:gosec // File is intended to be readable by others (0644)
 	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return errors.Wrap(err, "failed to write file '%s'", path)
+		return fmt.Errorf("failed to write file %q: %w", path, err)
 	}
 
 	return nil

@@ -8,8 +8,14 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stn1slv/md-paste/internal/clipboard"
 	"github.com/stn1slv/md-paste/internal/converter"
-	"github.com/stn1slv/md-paste/internal/errors"
 	"github.com/stn1slv/md-paste/internal/models"
+)
+
+// Build-time metadata, populated via -ldflags by goreleaser. See .goreleaser.yaml.
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
 )
 
 var (
@@ -27,6 +33,7 @@ By default, it writes the converted Markdown back to the clipboard.`,
 
   # Pipe the converted Markdown to another command
   md-paste -s | grep "TODO"`,
+		Version:       fmt.Sprintf("%s (commit %s, built %s)", version, commit, date),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE:          runPaste,
@@ -44,6 +51,7 @@ By default, it writes the converted Markdown back to the clipboard.`,
 func init() {
 	rootCmd.Flags().BoolVarP(&stdoutFlag, "stdout", "s", false, "Print converted Markdown to stdout instead of clipboard")
 	rootCmd.Flags().StringVarP(&saveRawFlag, "save-raw", "r", "", "File path where raw clipboard data will be saved")
+	rootCmd.SetVersionTemplate("md-paste {{.Version}}\n")
 }
 
 // Execute is the main entry point for the CLI.
@@ -54,7 +62,7 @@ func Execute() error {
 func runPaste(cmd *cobra.Command, _ []string) error {
 	content, err := clipboardRead()
 	if err != nil {
-		return errors.Wrap(err, "failed to read clipboard")
+		return fmt.Errorf("failed to read clipboard: %w", err)
 	}
 
 	if content.ContentType == models.ContentTypeNone {
@@ -64,13 +72,13 @@ func runPaste(cmd *cobra.Command, _ []string) error {
 
 	if saveRawFlag != "" {
 		if err := clipboard.SaveRaw(saveRawFlag, content); err != nil {
-			return errors.Wrap(err, "failed to save raw content")
+			return fmt.Errorf("failed to save raw content: %w", err)
 		}
 	}
 
 	doc, err := converter.Convert(content)
 	if err != nil {
-		return errors.Wrap(err, "failed to convert content")
+		return fmt.Errorf("failed to convert content: %w", err)
 	}
 
 	if stdoutFlag {
@@ -78,7 +86,7 @@ func runPaste(cmd *cobra.Command, _ []string) error {
 	}
 
 	if err := clipboardWrite(doc.Content); err != nil {
-		return errors.Wrap(err, "failed to write to clipboard")
+		return fmt.Errorf("failed to write to clipboard: %w", err)
 	}
 
 	// Silence-on-Success

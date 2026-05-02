@@ -4,7 +4,8 @@
 package clipboard
 
 import (
-	"github.com/stn1slv/md-paste/internal/errors"
+	"errors"
+
 	"github.com/stn1slv/md-paste/internal/models"
 )
 
