@@ -56,6 +56,23 @@ jobs:
           name: coverage-ubuntu
           path: coverage.out
 
+  test-windows:
+    name: Tests (Windows, pure-Go clipboard)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: go build
+        run: go build ./...
+
+      - name: go test
+        run: go test ./...
+
   test-darwin:
     name: Tests (macOS, CGO + E2E)
     runs-on: macos-latest

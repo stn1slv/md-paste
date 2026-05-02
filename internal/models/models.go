@@ -13,7 +13,7 @@ const (
 	ContentTypeNone ContentType = "None"
 )
 
-// ClipboardContent represents the data retrieved from the macOS pasteboard.
+// ClipboardContent represents the data retrieved from the system clipboard.
 type ClipboardContent struct {
 	RawHTML     string
 	PlainText   string

@@ -21,6 +21,22 @@ builds:
       - -X github.com/stn1slv/md-paste/internal/cli.commit={{ .Commit }}
       - -X github.com/stn1slv/md-paste/internal/cli.date={{ .Date }}
 
+  - id: md-paste-windows
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    main: ./cmd/md-paste
+    binary: md-paste
+    ldflags:
+      - -s -w
+      - -X github.com/stn1slv/md-paste/internal/cli.version={{ .Version }}
+      - -X github.com/stn1slv/md-paste/internal/cli.commit={{ .Commit }}
+      - -X github.com/stn1slv/md-paste/internal/cli.date={{ .Date }}
+
 archives:
   - format: tar.gz
     name_template: >-
@@ -30,6 +46,9 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
 
 changelog:
   sort: asc
@@ -47,7 +66,7 @@ brews:
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     directory: Formula
     homepage: "https://github.com/stn1slv/md-paste"
-    description: "Convert rich text on the macOS clipboard to Markdown"
+    description: "Convert rich text on the clipboard to Markdown"
     license: "MIT"
     test: |
       system "#{bin}/md-paste", "--version"

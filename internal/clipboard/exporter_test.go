@@ -3,6 +3,7 @@ package clipboard
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stn1slv/md-paste/internal/models"
@@ -61,6 +62,9 @@ func TestSaveRaw(t *testing.T) {
 	})
 
 	t.Run("Error if path is unwritable", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("Windows does not enforce directory permissions set via os.Mkdir mode bits")
+		}
 		// Create a directory with no write permissions
 		readonlyDir := filepath.Join(tmpDir, "readonly")
 		//nolint:gosec // Readonly directory for test
