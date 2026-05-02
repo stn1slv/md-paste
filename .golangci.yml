@@ -5,7 +5,7 @@ run:
   go: "1.26"
 
 linters:
-  disable-all: true
+  default: none
   enable:
     - errcheck
     - govet
@@ -27,6 +27,24 @@ linters:
     - goconst
     - misspell
     - testifylint
+  settings:
+    revive:
+      rules:
+        - name: context-as-argument
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+        - name: if-return
+        - name: var-naming
+        - name: package-comments
+    exhaustive:
+      default-signifies-exhaustive: true
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+    testifylint:
+      enable-all: true
 
 formatters:
   enable:
@@ -36,26 +54,6 @@ formatters:
       module-path: github.com/stn1slv/md-paste
       extra-rules: true
 
-linters-settings:
-  revive:
-    rules:
-      - name: context-as-first-argument
-      - name: error-return
-      - name: error-strings
-      - name: error-naming
-      - name: exported
-      - name: if-return
-      - name: var-naming
-      - name: package-comments
-  exhaustive:
-    default-signifies-exhaustive: true
-  goconst:
-    min-len: 3
-    min-occurrences: 3
-  testifylint:
-    enable-all: true
-
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0

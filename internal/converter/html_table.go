@@ -1,7 +1,6 @@
 package converter
 
 import (
-	stdhtml "html"
 	"strconv"
 	"strings"
 
@@ -198,59 +197,52 @@ func parseStyleAttr(val string) models.Alignment {
 }
 
 func processCellContent(n *html.Node, converter *htmltomarkdown.Converter) string {
-	// FR-005: Confluence macro stripping.
-	// We'll traverse and replace such spans with their text before general conversion.
+	// FR-005: Strip Confluence macros, then serialize the cell's children
+	// via html.Render so void elements and edge cases are handled correctly.
 	var innerHTML strings.Builder
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		processNodeRecursive(c, &innerHTML)
+		cleaned := cleanCellNode(c)
+		if err := html.Render(&innerHTML, cleaned); err != nil {
+			return textOnlyContent(n)
+		}
 	}
 
 	markdown, err := converter.ConvertString(innerHTML.String())
 	if err != nil {
-		var sb strings.Builder
-		renderTextOnly(n, &sb)
-		return strings.TrimSpace(sb.String())
+		return textOnlyContent(n)
 	}
 
 	return strings.TrimSpace(markdown)
 }
 
-func processNodeRecursive(n *html.Node, sb *strings.Builder) {
+func textOnlyContent(n *html.Node) string {
+	var sb strings.Builder
+	renderTextOnly(n, &sb)
+	return strings.TrimSpace(sb.String())
+}
+
+// cleanCellNode returns a deep copy of n suitable for html.Render. Confluence
+// macro elements are replaced by a text node containing only their inner text.
+func cleanCellNode(n *html.Node) *html.Node {
 	if isConfluenceMacro(n) {
-		var textSB strings.Builder
-		renderTextOnly(n, &textSB)
-		sb.WriteString(textSB.String())
-		return
+		var sb strings.Builder
+		renderTextOnly(n, &sb)
+		return &html.Node{Type: html.TextNode, Data: sb.String()}
 	}
 
-	if n.Type == html.TextNode {
-		sb.WriteString(stdhtml.EscapeString(n.Data))
-		return
+	clone := &html.Node{
+		Type:      n.Type,
+		DataAtom:  n.DataAtom,
+		Data:      n.Data,
+		Namespace: n.Namespace,
+		Attr:      append([]html.Attribute(nil), n.Attr...),
 	}
 
-	if n.Type == html.ElementNode {
-		// Start tag
-		sb.WriteString("<")
-		sb.WriteString(n.Data)
-		for _, attr := range n.Attr {
-			sb.WriteString(" ")
-			sb.WriteString(attr.Key)
-			sb.WriteString(`="`)
-			sb.WriteString(stdhtml.EscapeString(attr.Val))
-			sb.WriteString(`"`)
-		}
-		sb.WriteString(">")
-
-		// Children
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			processNodeRecursive(c, sb)
-		}
-
-		// End tag
-		sb.WriteString("</")
-		sb.WriteString(n.Data)
-		sb.WriteString(">")
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		clone.AppendChild(cleanCellNode(c))
 	}
+
+	return clone
 }
 
 func isConfluenceMacro(n *html.Node) bool {

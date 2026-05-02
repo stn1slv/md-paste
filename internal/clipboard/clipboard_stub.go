@@ -4,7 +4,8 @@
 package clipboard
 
 import (
-	"github.com/stn1slv/md-paste/internal/errors"
+	"errors"
+
 	"github.com/stn1slv/md-paste/internal/models"
 )
 
@@ -16,7 +17,7 @@ func Read() (models.ClipboardContent, error) {
 }
 
 // WriteMarkdown returns an error on non-macOS platforms.
-func WriteMarkdown(text string) error {
+func WriteMarkdown(_ string) error {
 	return errUnsupported
 }
 

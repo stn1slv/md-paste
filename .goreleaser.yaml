@@ -15,6 +15,11 @@ builds:
       - arm64
     main: ./cmd/md-paste
     binary: md-paste
+    ldflags:
+      - -s -w
+      - -X github.com/stn1slv/md-paste/internal/cli.version={{ .Version }}
+      - -X github.com/stn1slv/md-paste/internal/cli.commit={{ .Commit }}
+      - -X github.com/stn1slv/md-paste/internal/cli.date={{ .Date }}
 
 archives:
   - format: tar.gz
@@ -45,4 +50,4 @@ brews:
     description: "Convert rich text on the macOS clipboard to Markdown"
     license: "MIT"
     test: |
-      system "#{bin}/md-paste", "--help"
+      system "#{bin}/md-paste", "--version"

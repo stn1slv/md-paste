@@ -61,8 +61,9 @@ The binary will be available in `./bin/md-paste`.
 See the [Constitution](.specify/memory/constitution.md) for core principles.
 
 ```bash
-make setup  # Install dependencies
-make test   # Run unit and integration tests
-make lint   # Run golangci-lint
-make format # Run gofumpt
+make setup            # Install dependencies
+make test             # Run unit tests
+make test-integration # Run unit + E2E clipboard tests (modifies the system clipboard)
+make lint             # Run golangci-lint
+make format           # Run gofumpt
 ```
