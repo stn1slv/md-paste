@@ -25,10 +25,11 @@ jobs:
         run: go vet ./...
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
-          # Pinned: requires a binary built with go1.26 to match go.mod.
-          # v2.12.1 is built with go1.26.x; bump as new releases ship.
+          # @v8 is required for golangci-lint v2.x. The pinned version must
+          # be a binary built with go1.26 to match go.mod; v2.12.1 satisfies
+          # that. Bump as new releases ship.
           version: v2.12.1
           args: --timeout=5m
 

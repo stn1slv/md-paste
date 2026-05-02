@@ -72,6 +72,8 @@ func TestClipboard_ReadWrite(t *testing.T) {
 	})
 
 	// 3. Invalid UTF-8 is replaced with U+FFFD before reaching NSString.
+	// strings.ToValidUTF8 collapses each run of invalid bytes to a single
+	// replacement character, so two consecutive invalid bytes become one �.
 	t.Run("InvalidUTF8", func(t *testing.T) {
 		invalid := "ok\xff\xfetail"
 		err := WriteMarkdown(invalid)
@@ -79,6 +81,6 @@ func TestClipboard_ReadWrite(t *testing.T) {
 
 		content, err := Read()
 		require.NoError(t, err)
-		assert.Equal(t, "ok��tail", content.PlainText)
+		assert.Equal(t, "ok�tail", content.PlainText)
 	})
 }

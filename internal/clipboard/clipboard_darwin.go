@@ -45,20 +45,19 @@ int read_clipboard(char **html, char **plain) {
 
 // Returns 1 on success, 0 if the bytes could not be decoded as UTF-8.
 int write_clipboard(const char *text) {
+	int result = 0;
 	@autoreleasepool {
 		NSPasteboard *pb = [NSPasteboard generalPasteboard];
-
 		NSString *str = [NSString stringWithUTF8String:text];
-		if (str == nil) {
+		if (str != nil) {
 			// Defense in depth: Go-side already replaces invalid UTF-8,
 			// but never pass nil to setString: which would raise.
-			return 0;
+			[pb clearContents];
+			[pb setString:str forType:NSPasteboardTypeString];
+			result = 1;
 		}
-
-		[pb clearContents];
-		[pb setString:str forType:NSPasteboardTypeString];
-		return 1;
 	}
+	return result;
 }
 
 void clear_clipboard() {
