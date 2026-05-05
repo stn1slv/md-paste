@@ -64,7 +64,9 @@ func openClipboard() error {
 			return nil
 		}
 		lastErr = err
-		time.Sleep(openClipboardBackoff)
+		if i < openClipboardAttempts-1 {
+			time.Sleep(openClipboardBackoff)
+		}
 	}
 	return fmt.Errorf("OpenClipboard: %w", lastErr)
 }
