@@ -20,7 +20,10 @@ const (
 	cfUnicodeText = 13
 	gmemMoveable  = 0x0002
 
-	openClipboardAttempts = 10
+	// openClipboard retries for up to ~500ms in 10ms increments. This covers
+	// realistic hold times from clipboard managers, RDP redirection, and AV
+	// hooks without making CLI failures feel sluggish.
+	openClipboardAttempts = 50
 	openClipboardBackoff  = 10 * time.Millisecond
 )
 
