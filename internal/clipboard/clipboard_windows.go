@@ -4,7 +4,6 @@
 package clipboard
 
 import (
-	"errors"
 	"fmt"
 	"runtime"
 	"strconv"
@@ -72,12 +71,18 @@ func closeClipboard() {
 }
 
 // lockGlobal calls GlobalLock and returns a pointer to the locked memory.
+// On failure GlobalLock returns NULL and the syscall errno is surfaced via
+// the second return so callers can wrap it for diagnostics.
+//
 // We reinterpret the uintptr result via a *unsafe.Pointer cast rather than
 // the direct unsafe.Pointer(uintptr) form, which sidesteps go vet's
 // unsafeptr false-positive for OS-level (non-GC) memory addresses.
-func lockGlobal(h uintptr) unsafe.Pointer {
-	r, _, _ := syscall.Syscall(procGlobalLock.Addr(), 1, h, 0, 0)
-	return *(*unsafe.Pointer)(unsafe.Pointer(&r))
+func lockGlobal(h uintptr) (unsafe.Pointer, error) {
+	r, _, err := syscall.Syscall(procGlobalLock.Addr(), 1, h, 0, 0)
+	if r == 0 {
+		return nil, err
+	}
+	return *(*unsafe.Pointer)(unsafe.Pointer(&r)), nil
 }
 
 func unlockGlobal(h uintptr) {
@@ -87,8 +92,8 @@ func unlockGlobal(h uintptr) {
 // readGlobalMemBytes reads null-terminated bytes from a global memory handle
 // returned by GetClipboardData. Used for CF_HTML (UTF-8 encoded).
 func readGlobalMemBytes(h uintptr) []byte {
-	p := lockGlobal(h)
-	if p == nil {
+	p, err := lockGlobal(h)
+	if err != nil {
 		return nil
 	}
 	defer unlockGlobal(h)
@@ -108,8 +113,8 @@ func readGlobalMemBytes(h uintptr) []byte {
 // readGlobalMemUTF16 reads null-terminated UTF-16 LE from a global memory
 // handle returned by GetClipboardData. Used for CF_UNICODETEXT.
 func readGlobalMemUTF16(h uintptr) string {
-	p := lockGlobal(h)
-	if p == nil {
+	p, err := lockGlobal(h)
+	if err != nil {
 		return ""
 	}
 	defer unlockGlobal(h)
@@ -220,10 +225,10 @@ func WriteMarkdown(text string) error {
 		return fmt.Errorf("GlobalAlloc: %w", allocErr)
 	}
 
-	p := lockGlobal(h)
-	if p == nil {
+	p, lockErr := lockGlobal(h)
+	if lockErr != nil {
 		procGlobalFree.Call(h) //nolint:errcheck
-		return errors.New("GlobalLock returned nil")
+		return fmt.Errorf("GlobalLock: %w", lockErr)
 	}
 
 	for i, v := range encoded {
