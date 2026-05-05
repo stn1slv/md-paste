@@ -4,10 +4,12 @@
 package clipboard
 
 import (
-	"errors"
+	"fmt"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 	"unicode/utf16"
 	"unsafe"
 
@@ -17,6 +19,12 @@ import (
 const (
 	cfUnicodeText = 13
 	gmemMoveable  = 0x0002
+
+	// openClipboard retries for up to ~500ms in 10ms increments. This covers
+	// realistic hold times from clipboard managers, RDP redirection, and AV
+	// hooks without making CLI failures feel sluggish.
+	openClipboardAttempts = 50
+	openClipboardBackoff  = 10 * time.Millisecond
 )
 
 var (
@@ -34,8 +42,7 @@ var (
 	procGlobalLock               = kernel32.NewProc("GlobalLock")
 	procGlobalUnlock             = kernel32.NewProc("GlobalUnlock")
 
-	cfHTMLFormat   uint32
-	errWriteFailed = errors.New("clipboard write failed")
+	cfHTMLFormat uint32
 )
 
 func init() {
@@ -46,12 +53,22 @@ func init() {
 	}
 }
 
+// openClipboard opens the system clipboard, retrying briefly while another
+// process owns it. Clipboard managers, browsers, and antivirus tools regularly
+// hold the clipboard for short windows, so a single attempt is unreliable.
 func openClipboard() error {
-	r, _, err := procOpenClipboard.Call(0)
-	if r == 0 {
-		return err
+	var lastErr error
+	for i := 0; i < openClipboardAttempts; i++ {
+		r, _, err := procOpenClipboard.Call(0)
+		if r != 0 {
+			return nil
+		}
+		lastErr = err
+		if i < openClipboardAttempts-1 {
+			time.Sleep(openClipboardBackoff)
+		}
 	}
-	return nil
+	return fmt.Errorf("OpenClipboard: %w", lastErr)
 }
 
 func closeClipboard() {
@@ -59,12 +76,18 @@ func closeClipboard() {
 }
 
 // lockGlobal calls GlobalLock and returns a pointer to the locked memory.
+// On failure GlobalLock returns NULL and the syscall errno is surfaced via
+// the second return so callers can wrap it for diagnostics.
+//
 // We reinterpret the uintptr result via a *unsafe.Pointer cast rather than
 // the direct unsafe.Pointer(uintptr) form, which sidesteps go vet's
 // unsafeptr false-positive for OS-level (non-GC) memory addresses.
-func lockGlobal(h uintptr) unsafe.Pointer {
-	r, _, _ := syscall.Syscall(procGlobalLock.Addr(), 1, h, 0, 0)
-	return *(*unsafe.Pointer)(unsafe.Pointer(&r))
+func lockGlobal(h uintptr) (unsafe.Pointer, error) {
+	r, _, err := syscall.Syscall(procGlobalLock.Addr(), 1, h, 0, 0)
+	if r == 0 {
+		return nil, err
+	}
+	return *(*unsafe.Pointer)(unsafe.Pointer(&r)), nil
 }
 
 func unlockGlobal(h uintptr) {
@@ -74,8 +97,8 @@ func unlockGlobal(h uintptr) {
 // readGlobalMemBytes reads null-terminated bytes from a global memory handle
 // returned by GetClipboardData. Used for CF_HTML (UTF-8 encoded).
 func readGlobalMemBytes(h uintptr) []byte {
-	p := lockGlobal(h)
-	if p == nil {
+	p, err := lockGlobal(h)
+	if err != nil {
 		return nil
 	}
 	defer unlockGlobal(h)
@@ -95,8 +118,8 @@ func readGlobalMemBytes(h uintptr) []byte {
 // readGlobalMemUTF16 reads null-terminated UTF-16 LE from a global memory
 // handle returned by GetClipboardData. Used for CF_UNICODETEXT.
 func readGlobalMemUTF16(h uintptr) string {
-	p := lockGlobal(h)
-	if p == nil {
+	p, err := lockGlobal(h)
+	if err != nil {
 		return ""
 	}
 	defer unlockGlobal(h)
@@ -113,27 +136,39 @@ func readGlobalMemUTF16(h uintptr) string {
 	return string(utf16.Decode(u16s))
 }
 
-// parseWindowsHTMLFormat extracts the HTML document from Windows CF_HTML data.
+// parseWindowsHTMLFormat extracts the HTML payload from Windows CF_HTML data.
 // The format prepends a text header with byte-offset markers before the HTML.
+// We prefer StartFragment/EndFragment (the user's actual selection) and fall
+// back to StartHTML/EndHTML (the surrounding synthetic document) when the
+// fragment markers are absent.
 func parseWindowsHTMLFormat(data []byte) string {
 	s := string(data)
-	var startHTML, endHTML int
+	offsets := map[string]int{}
 
 	for _, line := range strings.SplitN(s, "\n", 20) {
 		line = strings.TrimSpace(line)
-		if after, ok := strings.CutPrefix(line, "StartHTML:"); ok {
-			if n, err := strconv.Atoi(strings.TrimSpace(after)); err == nil {
-				startHTML = n
-			}
-		} else if after, ok := strings.CutPrefix(line, "EndHTML:"); ok {
-			if n, err := strconv.Atoi(strings.TrimSpace(after)); err == nil {
-				endHTML = n
+		for _, key := range []string{"StartFragment:", "EndFragment:", "StartHTML:", "EndHTML:"} {
+			if after, ok := strings.CutPrefix(line, key); ok {
+				if n, err := strconv.Atoi(strings.TrimSpace(after)); err == nil {
+					offsets[strings.TrimSuffix(key, ":")] = n
+				}
+				break
 			}
 		}
 	}
 
-	if startHTML > 0 && endHTML > startHTML && endHTML <= len(data) {
-		return string(data[startHTML:endHTML])
+	slice := func(start, end int) (string, bool) {
+		if start > 0 && end > start && end <= len(data) {
+			return string(data[start:end]), true
+		}
+		return "", false
+	}
+
+	if out, ok := slice(offsets["StartFragment"], offsets["EndFragment"]); ok {
+		return out
+	}
+	if out, ok := slice(offsets["StartHTML"], offsets["EndHTML"]); ok {
+		return out
 	}
 
 	// Fallback: strip the text header by finding the first '<'
@@ -145,6 +180,12 @@ func parseWindowsHTMLFormat(data []byte) string {
 
 // Read retrieves content from the Windows system clipboard.
 func Read() (models.ClipboardContent, error) {
+	// OpenClipboard associates the clipboard with the calling OS thread; every
+	// subsequent clipboard syscall must run on that same thread or it fails
+	// with ERROR_CLIPBOARD_NOT_OPEN. Pin the goroutine to prevent migration.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	if err := openClipboard(); err != nil {
 		return models.ClipboardContent{ContentType: models.ContentTypeNone}, err
 	}
@@ -178,18 +219,21 @@ func Read() (models.ClipboardContent, error) {
 // WriteMarkdown writes the converted Markdown string to the clipboard as
 // CF_UNICODETEXT (UTF-16 LE with null terminator).
 func WriteMarkdown(text string) error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	encoded := utf16.Encode([]rune(text))
 	byteSize := (len(encoded) + 1) * 2 // +1 for UTF-16 null terminator
 
-	h, _, _ := procGlobalAlloc.Call(gmemMoveable, uintptr(byteSize))
+	h, _, allocErr := procGlobalAlloc.Call(gmemMoveable, uintptr(byteSize))
 	if h == 0 {
-		return errWriteFailed
+		return fmt.Errorf("GlobalAlloc: %w", allocErr)
 	}
 
-	p := lockGlobal(h)
-	if p == nil {
+	p, lockErr := lockGlobal(h)
+	if lockErr != nil {
 		procGlobalFree.Call(h) //nolint:errcheck
-		return errWriteFailed
+		return fmt.Errorf("GlobalLock: %w", lockErr)
 	}
 
 	for i, v := range encoded {
@@ -204,15 +248,15 @@ func WriteMarkdown(text string) error {
 	}
 	defer closeClipboard()
 
-	if r, _, _ := procEmptyClipboard.Call(); r == 0 {
+	if r, _, err := procEmptyClipboard.Call(); r == 0 {
 		procGlobalFree.Call(h) //nolint:errcheck
-		return errWriteFailed
+		return fmt.Errorf("EmptyClipboard: %w", err)
 	}
 
 	// After a successful SetClipboardData the OS owns the handle; do not free it.
-	if r, _, _ := procSetClipboardData.Call(cfUnicodeText, h); r == 0 {
+	if r, _, err := procSetClipboardData.Call(cfUnicodeText, h); r == 0 {
 		procGlobalFree.Call(h) //nolint:errcheck
-		return errWriteFailed
+		return fmt.Errorf("SetClipboardData: %w", err)
 	}
 
 	return nil
@@ -220,13 +264,16 @@ func WriteMarkdown(text string) error {
 
 // Clear empties the system clipboard.
 func Clear() error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	if err := openClipboard(); err != nil {
 		return err
 	}
 	defer closeClipboard()
 
 	if r, _, err := procEmptyClipboard.Call(); r == 0 {
-		return err
+		return fmt.Errorf("EmptyClipboard: %w", err)
 	}
 	return nil
 }
