@@ -41,6 +41,7 @@ var (
 	procGlobalFree               = kernel32.NewProc("GlobalFree")
 	procGlobalLock               = kernel32.NewProc("GlobalLock")
 	procGlobalUnlock             = kernel32.NewProc("GlobalUnlock")
+	procGlobalSize               = kernel32.NewProc("GlobalSize")
 
 	cfHTMLFormat uint32
 )
@@ -94,8 +95,17 @@ func unlockGlobal(h uintptr) {
 	syscall.Syscall(procGlobalUnlock.Addr(), 1, h, 0, 0) //nolint:errcheck
 }
 
+// globalSize returns the size in bytes of a global memory allocation, or 0 on
+// failure. Used to bound reads: clipboard payloads are written by arbitrary
+// applications and a null terminator is not guaranteed.
+func globalSize(h uintptr) int {
+	r, _, _ := procGlobalSize.Call(h)
+	return int(r)
+}
+
 // readGlobalMemBytes reads null-terminated bytes from a global memory handle
-// returned by GetClipboardData. Used for CF_HTML (UTF-8 encoded).
+// returned by GetClipboardData, never scanning past the allocation boundary.
+// Used for CF_HTML (UTF-8 encoded).
 func readGlobalMemBytes(h uintptr) []byte {
 	p, err := lockGlobal(h)
 	if err != nil {
@@ -103,20 +113,22 @@ func readGlobalMemBytes(h uintptr) []byte {
 	}
 	defer unlockGlobal(h)
 
-	var n int
-	for *(*byte)(unsafe.Add(p, n)) != 0 {
-		n++
+	size := globalSize(h)
+	if size == 0 {
+		return nil
 	}
 
-	buf := make([]byte, n)
-	for i := range buf {
-		buf[i] = *(*byte)(unsafe.Add(p, i))
+	mem := unsafe.Slice((*byte)(p), size)
+	n := 0
+	for n < len(mem) && mem[n] != 0 {
+		n++
 	}
-	return buf
+	return append([]byte(nil), mem[:n]...)
 }
 
 // readGlobalMemUTF16 reads null-terminated UTF-16 LE from a global memory
-// handle returned by GetClipboardData. Used for CF_UNICODETEXT.
+// handle returned by GetClipboardData, never scanning past the allocation
+// boundary. Used for CF_UNICODETEXT.
 func readGlobalMemUTF16(h uintptr) string {
 	p, err := lockGlobal(h)
 	if err != nil {
@@ -124,16 +136,17 @@ func readGlobalMemUTF16(h uintptr) string {
 	}
 	defer unlockGlobal(h)
 
-	var n int
-	for *(*uint16)(unsafe.Add(p, n*2)) != 0 {
-		n++
+	size := globalSize(h)
+	if size < 2 {
+		return ""
 	}
 
-	u16s := make([]uint16, n)
-	for i := range u16s {
-		u16s[i] = *(*uint16)(unsafe.Add(p, i*2))
+	mem := unsafe.Slice((*uint16)(p), size/2)
+	n := 0
+	for n < len(mem) && mem[n] != 0 {
+		n++
 	}
-	return string(utf16.Decode(u16s))
+	return string(utf16.Decode(mem[:n]))
 }
 
 // parseWindowsHTMLFormat extracts the HTML payload from Windows CF_HTML data.

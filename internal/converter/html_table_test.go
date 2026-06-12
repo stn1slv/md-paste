@@ -1,10 +1,14 @@
 package converter
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stn1slv/md-paste/internal/models"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 func TestExtractTableFromHTML(t *testing.T) {
@@ -149,6 +153,49 @@ func TestExtractTableFromHTML(t *testing.T) {
 			if found {
 				assert.Equal(t, tt.expected, result)
 			}
+		})
+	}
+}
+
+func TestGetSpansClampsValues(t *testing.T) {
+	tests := []struct {
+		name        string
+		cell        string
+		wantRowSpan int
+		wantColSpan int
+	}{
+		{
+			name:        "huge spans clamped to HTML spec limits",
+			cell:        `<td rowspan="999999" colspan="100000000">x</td>`,
+			wantRowSpan: 65534,
+			wantColSpan: 1000,
+		},
+		{
+			name:        "zero and negative spans clamped to 1",
+			cell:        `<td rowspan="0" colspan="-5">x</td>`,
+			wantRowSpan: 1,
+			wantColSpan: 1,
+		},
+		{
+			name:        "normal spans preserved",
+			cell:        `<td rowspan="2" colspan="3">x</td>`,
+			wantRowSpan: 2,
+			wantColSpan: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			doc, err := html.Parse(strings.NewReader("<table><tr>" + tt.cell + "</tr></table>"))
+			require.NoError(t, err)
+			tableNode := findFirstTable(doc)
+			require.NotNil(t, tableNode)
+			cells := findNodes(tableNode, atom.Td)
+			require.Len(t, cells, 1)
+
+			rowSpan, colSpan := getSpans(cells[0])
+			assert.Equal(t, tt.wantRowSpan, rowSpan)
+			assert.Equal(t, tt.wantColSpan, colSpan)
 		})
 	}
 }

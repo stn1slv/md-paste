@@ -21,8 +21,8 @@ var (
 var (
 	rootCmd = &cobra.Command{
 		Use:   "md-paste",
-		Short: "Convert rich text on the macOS clipboard to Markdown",
-		Long: `md-paste reads HTML from the macOS clipboard and converts it to Markdown.
+		Short: "Convert rich text on the clipboard to Markdown",
+		Long: `md-paste reads HTML from the system clipboard and converts it to Markdown.
 By default, it writes the converted Markdown back to the clipboard.`,
 		Example: `  # Convert clipboard HTML to Markdown and save it back to clipboard
   md-paste

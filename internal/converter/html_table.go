@@ -115,21 +115,39 @@ func parseRow(tr *html.Node, table *models.Table, converter *htmltomarkdown.Conv
 	return row
 }
 
+// HTML spec limits for span attributes. Clipboard HTML is arbitrary external
+// input; clamping prevents a huge colspan from blowing up the grid allocation
+// in FlattenTable.
+const (
+	maxRowSpan = 65534
+	maxColSpan = 1000
+)
+
 func getSpans(n *html.Node) (rowSpan, colSpan int) {
 	rowSpan, colSpan = 1, 1
 	for _, attr := range n.Attr {
 		if attr.Key == "rowspan" {
 			if val, err := strconv.Atoi(attr.Val); err == nil {
-				rowSpan = val
+				rowSpan = clampSpan(val, maxRowSpan)
 			}
 		}
 		if attr.Key == "colspan" {
 			if val, err := strconv.Atoi(attr.Val); err == nil {
-				colSpan = val
+				colSpan = clampSpan(val, maxColSpan)
 			}
 		}
 	}
 	return rowSpan, colSpan
+}
+
+func clampSpan(val, maxVal int) int {
+	if val < 1 {
+		return 1
+	}
+	if val > maxVal {
+		return maxVal
+	}
+	return val
 }
 
 func findNodes(n *html.Node, atoms ...atom.Atom) []*html.Node {
