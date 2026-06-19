@@ -14,7 +14,7 @@ jobs:
     name: Lint and vet (ubuntu)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v6
         with:
@@ -37,7 +37,7 @@ jobs:
     name: Tests (ubuntu, stub clipboard)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v6
         with:
@@ -60,7 +60,7 @@ jobs:
     name: Tests (Windows, pure-Go clipboard)
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v6
         with:
@@ -77,7 +77,7 @@ jobs:
     name: Tests (macOS, CGO + E2E)
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v6
         with:
