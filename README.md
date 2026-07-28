@@ -9,12 +9,24 @@ When copying from a browser or a word processor, the clipboard stores rich text.
 - **Native Integration**: Uses `NSPasteboard` via CGO for high-fidelity clipboard access.
 - **HTML Priority**: Automatically detects HTML and converts it. Falls back to plain text if needed.
 - **Pipe-Friendly**: Unix philosophy support with an optional `--stdout` flag.
+- **Menu Bar App (macOS)**: Optional resident menu bar app to convert the clipboard with a single click, with a "Launch at login" toggle.
 
 ## Installation
 
 ### Via Homebrew (Recommended)
 ```bash
 brew install stn1slv/tap/md-paste
+```
+
+### Menu Bar App (macOS)
+Install the menu bar app as a Homebrew Cask:
+```bash
+brew install --cask stn1slv/tap/md-paste
+```
+The app is ad-hoc signed and not notarized, so on first launch macOS Gatekeeper
+may block it. If that happens, clear the quarantine attribute:
+```bash
+xattr -dr com.apple.quarantine "/Applications/md-paste.app"
 ```
 
 ### Build from source
@@ -57,6 +69,14 @@ The binary will be available in `./bin/md-paste`.
   md-paste -s | grep "TODO"
   ```
 
+- **Run as a menu bar app (macOS)**:
+  ```bash
+  md-paste menubar
+  ```
+  Adds an icon to the menu bar. Click "Convert clipboard to Markdown" to convert
+  the clipboard in place (the icon briefly shows a checkmark on success). Use the
+  "Launch at login" toggle to start the app automatically after you log in.
+
 ## Development
 See the [Constitution](.specify/memory/constitution.md) for core principles.
 
@@ -66,4 +86,5 @@ make test             # Run unit tests
 make test-integration # Run unit + E2E clipboard tests (modifies the system clipboard)
 make lint             # Run golangci-lint
 make format           # Run gofumpt
+make bundle           # Build the macOS menu bar .app bundle and zip (in ./dist)
 ```

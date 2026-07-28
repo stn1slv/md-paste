@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stn1slv/md-paste/internal/clipboard"
-	"github.com/stn1slv/md-paste/internal/converter"
 	"github.com/stn1slv/md-paste/internal/models"
+	"github.com/stn1slv/md-paste/internal/service"
 )
 
 // Build-time metadata, populated via -ldflags by goreleaser. See .goreleaser.yaml.
@@ -60,37 +60,28 @@ func Execute() error {
 }
 
 func runPaste(cmd *cobra.Command, _ []string) error {
-	content, err := clipboardRead()
-	if err != nil {
-		return fmt.Errorf("failed to read clipboard: %w", err)
-	}
+	var hooks service.Hooks
 
-	if content.ContentType == models.ContentTypeNone {
-		// Silence-on-Empty: FR-003.1 says exit silently and perform no write.
-		return nil
-	}
-
+	// --save-raw: persist the raw clipboard content before conversion.
 	if saveRawFlag != "" {
-		if err := clipboard.SaveRaw(saveRawFlag, content); err != nil {
-			return fmt.Errorf("failed to save raw content: %w", err)
+		path := saveRawFlag
+		hooks.OnRawContent = func(content models.ClipboardContent) error {
+			return clipboard.SaveRaw(path, content)
 		}
 	}
 
-	doc, err := converter.Convert(content)
-	if err != nil {
-		return fmt.Errorf("failed to convert content: %w", err)
-	}
-
+	// --stdout: send the Markdown to stdout instead of the clipboard.
 	if stdoutFlag {
-		return printToStdout(cmd.OutOrStdout(), doc.Content)
+		out := cmd.OutOrStdout()
+		hooks.Sink = func(md string) error {
+			return printToStdout(out, md)
+		}
 	}
 
-	if err := clipboardWrite(doc.Content); err != nil {
-		return fmt.Errorf("failed to write to clipboard: %w", err)
-	}
-
-	// Silence-on-Success
-	return nil
+	// Silence-on-Empty and Silence-on-Success are handled by service.Convert:
+	// it writes nothing on empty clipboards and returns no message on success.
+	_, _, err := service.Convert(clipboardRead, clipboardWrite, hooks)
+	return err
 }
 
 func printToStdout(out io.Writer, content string) error {
