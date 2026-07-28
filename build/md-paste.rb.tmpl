@@ -9,6 +9,9 @@ cask "md-paste" do
 
   app "md-paste.app"
 
+  uninstall quit:      "com.stn1slv.md-paste",
+            launchctl: "com.stn1slv.md-paste"
+
   zap trash: [
     "~/Library/LaunchAgents/com.stn1slv.md-paste.plist",
   ]

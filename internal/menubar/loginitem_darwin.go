@@ -63,9 +63,9 @@ func loginItemEnabled() bool {
 	return err == nil
 }
 
-// enableLoginItem installs and loads a per-user LaunchAgent so md-paste starts
-// at login and immediately. This approach is signing-independent, unlike
-// SMAppService which needs a Developer ID-signed, notarized app bundle.
+// enableLoginItem installs a per-user LaunchAgent so md-paste starts at login.
+// This approach is signing-independent, unlike SMAppService which needs a
+// Developer ID-signed, notarized app bundle.
 func enableLoginItem() error {
 	exe, err := os.Executable()
 	if err != nil {
@@ -78,18 +78,12 @@ func enableLoginItem() error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("failed to create LaunchAgents directory: %w", err)
 	}
+	// Writing the plist is enough: launchd loads ~/Library/LaunchAgents at login.
+	// We deliberately do NOT bootstrap/start it now, because the menu bar app is
+	// already running (that is how this toggle was clicked); starting a second
+	// instance would create a duplicate menu bar icon.
 	if err := os.WriteFile(path, []byte(renderPlist(exe)), 0o600); err != nil {
 		return fmt.Errorf("failed to write launch agent: %w", err)
-	}
-
-	// Load it now so the toggle also takes effect in the current session.
-	// A prior bootout clears any stale registration; its error is ignored.
-	_ = bootoutLaunchAgent(path)
-	if err := runLaunchctl("bootstrap", guiDomain(), path); err != nil {
-		// Fallback for older macOS releases that lack `bootstrap`.
-		if loadErr := runLaunchctl("load", path); loadErr != nil {
-			return fmt.Errorf("failed to load launch agent: %w", loadErr)
-		}
 	}
 	return nil
 }
