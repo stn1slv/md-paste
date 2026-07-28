@@ -21,6 +21,11 @@ profile.cov
 # Dependency directories (remove the comment below to include it)
 vendor/
 
+# Build/release artifacts
+dist/
+# Generated from build/icon-1024.png by scripts/make-icns.sh
+build/icon.icns
+
 # Go workspace file
 go.work
 go.work.sum
