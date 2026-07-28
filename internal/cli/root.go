@@ -4,6 +4,7 @@ package cli
 import (
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/stn1slv/md-paste/internal/clipboard"
@@ -56,6 +57,11 @@ func init() {
 
 // Execute is the main entry point for the CLI.
 func Execute() error {
+	// When launched by double-clicking the .app bundle (no CLI arguments),
+	// default to the menu bar app instead of a one-shot conversion.
+	if len(os.Args) == 1 && isBundleLaunch() {
+		rootCmd.SetArgs([]string{menubarCmd.Use})
+	}
 	return rootCmd.Execute()
 }
 

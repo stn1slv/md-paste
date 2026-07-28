@@ -10,7 +10,9 @@ if [ ! -f "$SRC" ]; then
 	exit 1
 fi
 
-ICONSET="$(mktemp -d)/icon.iconset"
+TMPROOT="$(mktemp -d)"
+trap 'rm -rf "$TMPROOT"' EXIT
+ICONSET="$TMPROOT/icon.iconset"
 mkdir -p "$ICONSET"
 for size in 16 32 128 256 512; do
 	double=$((size * 2))

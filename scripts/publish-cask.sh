@@ -12,7 +12,13 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SHA="$(shasum -a 256 "$ZIP" | awk '{print $1}')"
 
 TMP="$(mktemp -d)"
-git clone --depth 1 "https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/stn1slv/homebrew-tap.git" "$TMP"
+trap 'rm -rf "$TMP"' EXIT
+
+# Pass the token via an auth header rather than embedding it in the remote URL,
+# so it never appears in the URL that git prints on failure.
+AUTH_HEADER="Authorization: Basic $(printf 'x-access-token:%s' "$TAP_GITHUB_TOKEN" | base64 | tr -d '\n')"
+REPO_URL="https://github.com/stn1slv/homebrew-tap.git"
+git -c http.extraheader="$AUTH_HEADER" clone --depth 1 "$REPO_URL" "$TMP"
 
 mkdir -p "$TMP/Casks"
 sed -e "s/__VERSION__/${VERSION}/g" -e "s/__SHA256__/${SHA}/g" \
@@ -27,5 +33,5 @@ git -C "$TMP" \
 	-c user.name="github-actions[bot]" \
 	-c user.email="github-actions[bot]@users.noreply.github.com" \
 	commit -m "chore: update md-paste cask to ${VERSION}"
-git -C "$TMP" push origin HEAD
+git -C "$TMP" -c http.extraheader="$AUTH_HEADER" push origin HEAD
 echo "Published md-paste cask ${VERSION}"

@@ -16,23 +16,16 @@ echo "Building universal binary (version ${VERSION})..."
 mkdir -p "$DIST"
 CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -ldflags "$LDFLAGS" -o "$DIST/md-paste-amd64" "$ROOT/cmd/md-paste"
 CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -ldflags "$LDFLAGS" -o "$DIST/md-paste-arm64" "$ROOT/cmd/md-paste"
-lipo -create -output "$DIST/md-paste-bin" "$DIST/md-paste-amd64" "$DIST/md-paste-arm64"
-rm -f "$DIST/md-paste-amd64" "$DIST/md-paste-arm64"
-
 echo "Assembling $APP..."
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-mv "$DIST/md-paste-bin" "$APP/Contents/MacOS/md-paste-bin"
 
-# Wrapper so double-clicking the .app starts menu bar mode. The same binary
-# still works as a plain CLI when invoked directly (e.g. the login item runs
-# `md-paste-bin menubar`).
-cat >"$APP/Contents/MacOS/md-paste" <<'WRAP'
-#!/bin/sh
-DIR="$(cd "$(dirname "$0")" && pwd)"
-exec "$DIR/md-paste-bin" menubar "$@"
-WRAP
-chmod +x "$APP/Contents/MacOS/md-paste" "$APP/Contents/MacOS/md-paste-bin"
+# The universal binary is the bundle's main executable (a real Mach-O, so the
+# app has a proper code identity). Launched with no arguments (double-click),
+# it detects the .app context and starts menu bar mode.
+lipo -create -output "$APP/Contents/MacOS/md-paste" "$DIST/md-paste-amd64" "$DIST/md-paste-arm64"
+rm -f "$DIST/md-paste-amd64" "$DIST/md-paste-arm64"
+chmod +x "$APP/Contents/MacOS/md-paste"
 
 sed "s/__VERSION__/${VERSION}/g" "$ROOT/build/Info.plist.tmpl" >"$APP/Contents/Info.plist"
 
@@ -42,7 +35,7 @@ fi
 cp "$ROOT/build/icon.icns" "$APP/Contents/Resources/icon.icns"
 
 echo "Ad-hoc signing..."
-codesign --force --deep --sign - "$APP"
+codesign --force --sign - "$APP"
 
 echo "Zipping..."
 ZIP="$DIST/md-paste_${VERSION}_macos.zip"
