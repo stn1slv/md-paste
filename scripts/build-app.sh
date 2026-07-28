@@ -14,8 +14,12 @@ LDFLAGS="-s -w -X ${PKG}.version=${VERSION} -X ${PKG}.commit=${COMMIT} -X ${PKG}
 
 echo "Building universal binary (version ${VERSION})..."
 mkdir -p "$DIST"
-CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -ldflags "$LDFLAGS" -o "$DIST/md-paste-amd64" "$ROOT/cmd/md-paste"
-CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -ldflags "$LDFLAGS" -o "$DIST/md-paste-arm64" "$ROOT/cmd/md-paste"
+AMD64_BIN="$DIST/md-paste-amd64"
+ARM64_BIN="$DIST/md-paste-arm64"
+# Clean up the intermediate per-arch binaries even if a later step fails.
+trap 'rm -f "$AMD64_BIN" "$ARM64_BIN"' EXIT
+CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -ldflags "$LDFLAGS" -o "$AMD64_BIN" "$ROOT/cmd/md-paste"
+CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -ldflags "$LDFLAGS" -o "$ARM64_BIN" "$ROOT/cmd/md-paste"
 echo "Assembling $APP..."
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
@@ -23,8 +27,8 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # The universal binary is the bundle's main executable (a real Mach-O, so the
 # app has a proper code identity). Launched with no arguments (double-click),
 # it detects the .app context and starts menu bar mode.
-lipo -create -output "$APP/Contents/MacOS/md-paste" "$DIST/md-paste-amd64" "$DIST/md-paste-arm64"
-rm -f "$DIST/md-paste-amd64" "$DIST/md-paste-arm64"
+lipo -create -output "$APP/Contents/MacOS/md-paste" "$AMD64_BIN" "$ARM64_BIN"
+rm -f "$AMD64_BIN" "$ARM64_BIN"
 chmod +x "$APP/Contents/MacOS/md-paste"
 
 sed "s/__VERSION__/${VERSION}/g" "$ROOT/build/Info.plist.tmpl" >"$APP/Contents/Info.plist"
