@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestRenderPlist(t *testing.T) {
@@ -23,10 +22,4 @@ func TestRenderPlistEscapesXML(t *testing.T) {
 
 	assert.Contains(t, out, "/Applications/Tools &amp; Apps/md-paste.app/Contents/MacOS/md-paste-bin")
 	assert.NotContains(t, out, "Tools & Apps")
-}
-
-func TestGUIDomain(t *testing.T) {
-	d := guiDomain()
-	require.NotEmpty(t, d)
-	assert.Regexp(t, `^gui/\d+$`, d)
 }

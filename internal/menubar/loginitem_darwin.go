@@ -3,15 +3,11 @@
 package menubar
 
 import (
-	"context"
 	"encoding/xml"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
-	"time"
 )
 
 const launchAgentLabel = "com.stn1slv.md-paste"
@@ -88,39 +84,20 @@ func enableLoginItem() error {
 	return nil
 }
 
-// disableLoginItem unloads and removes the LaunchAgent.
+// disableLoginItem removes the LaunchAgent plist. The on-disk state is
+// authoritative: launchd loads ~/Library/LaunchAgents only at login, and the
+// plist declares no KeepAlive, so removing the file is enough to prevent
+// autostart at the next login. We deliberately do NOT run `launchctl bootout`:
+// when the app was itself started at login it is the launchd-managed process,
+// and bootout would send it SIGTERM, quitting the app the moment the user turns
+// the toggle off.
 func disableLoginItem() error {
 	path, err := plistPath()
 	if err != nil {
 		return err
 	}
-	_ = bootoutLaunchAgent(path)
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to remove launch agent: %w", err)
-	}
-	return nil
-}
-
-func bootoutLaunchAgent(path string) error {
-	return runLaunchctl("bootout", guiDomain(), path)
-}
-
-func guiDomain() string {
-	return "gui/" + strconv.Itoa(os.Getuid())
-}
-
-func runLaunchctl(args ...string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	// Args are constructed internally (fixed subcommands plus a plist path
-	// derived from os.UserHomeDir), never from untrusted input.
-	//nolint:gosec // controlled arguments, no shell interpolation
-	out, err := exec.CommandContext(ctx, "launchctl", args...).CombinedOutput()
-	if err != nil {
-		if msg := strings.TrimSpace(string(out)); msg != "" {
-			return fmt.Errorf("launchctl %s: %w: %s", strings.Join(args, " "), err, msg)
-		}
-		return fmt.Errorf("launchctl %s: %w", strings.Join(args, " "), err)
 	}
 	return nil
 }
