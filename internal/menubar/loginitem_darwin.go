@@ -4,11 +4,13 @@ package menubar
 
 import (
 	"context"
+	"encoding/xml"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -34,8 +36,13 @@ const plistTemplate = `<?xml version="1.0" encoding="UTF-8"?>
 `
 
 // renderPlist builds the LaunchAgent plist that starts `<exe> menubar` at login.
+// The executable path is XML-escaped so paths containing characters such as
+// '&' produce a valid plist.
 func renderPlist(exe string) string {
-	return fmt.Sprintf(plistTemplate, launchAgentLabel, exe)
+	var escaped strings.Builder
+	// xml.EscapeText only fails if the writer fails; strings.Builder never does.
+	_ = xml.EscapeText(&escaped, []byte(exe))
+	return fmt.Sprintf(plistTemplate, launchAgentLabel, escaped.String())
 }
 
 func plistPath() (string, error) {
@@ -114,5 +121,12 @@ func runLaunchctl(args ...string) error {
 	// Args are constructed internally (fixed subcommands plus a plist path
 	// derived from os.UserHomeDir), never from untrusted input.
 	//nolint:gosec // controlled arguments, no shell interpolation
-	return exec.CommandContext(ctx, "launchctl", args...).Run()
+	out, err := exec.CommandContext(ctx, "launchctl", args...).CombinedOutput()
+	if err != nil {
+		if msg := strings.TrimSpace(string(out)); msg != "" {
+			return fmt.Errorf("launchctl %s: %w: %s", strings.Join(args, " "), err, msg)
+		}
+		return fmt.Errorf("launchctl %s: %w", strings.Join(args, " "), err)
+	}
+	return nil
 }
