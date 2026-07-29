@@ -84,7 +84,7 @@ func (a *app) loadSettings() {
 	}
 	a.cfgPath = path
 
-	defaults := config.Config{Hotkey: defaultHotkey, LaunchAtLogin: loginItemEnabled()}
+	defaults := config.Config{Hotkey: defaultHotkey, LaunchAtLogin: loginItemPresent()}
 	cfg, existed, err := config.Load(path, defaults)
 	if err != nil {
 		slog.Error("failed to load config, using defaults", "error", err)
@@ -139,6 +139,10 @@ func (a *app) loop(mEditShortcut, mReload, mLogin, mQuit *systray.MenuItem) {
 		case <-a.mConvert.ClickedCh:
 			a.convert()
 		case <-mEditShortcut.ClickedCh:
+			if a.cfgPath == "" {
+				slog.Error("cannot open config file: config path is unavailable")
+				break
+			}
 			if err := openConfigFile(a.cfgPath); err != nil {
 				slog.Error("failed to open config file", "path", a.cfgPath, "error", err)
 			}
@@ -159,7 +163,7 @@ func (a *app) loop(mEditShortcut, mReload, mLogin, mQuit *systray.MenuItem) {
 // reloadConfig re-reads the file and applies changes live: it re-registers the
 // shortcut only if it changed and reconciles launch-at-login to the new value.
 func (a *app) reloadConfig(mLogin *systray.MenuItem) {
-	defaults := config.Config{Hotkey: defaultHotkey, LaunchAtLogin: loginItemEnabled()}
+	defaults := config.Config{Hotkey: defaultHotkey, LaunchAtLogin: loginItemPresent()}
 	cfg, _, err := config.Load(a.cfgPath, defaults)
 	if err != nil {
 		slog.Error("failed to reload config", "error", err)

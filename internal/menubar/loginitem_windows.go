@@ -55,6 +55,23 @@ func loginItemEnabled() bool {
 	return strings.EqualFold(val, startupCommand(exe))
 }
 
+// loginItemPresent reports whether an autostart Run entry exists by name,
+// regardless of whether its stored path matches the current executable. First-run
+// migration seeds the config from this so a stale entry (e.g. after a WinGet
+// update to a new versioned directory) migrates as enabled and enableLoginItem
+// heals the path, instead of being deleted.
+func loginItemPresent() bool {
+	k, err := registry.OpenKey(registry.CURRENT_USER, runKeyPath, registry.QUERY_VALUE)
+	if err != nil {
+		return false
+	}
+	defer func() { _ = k.Close() }()
+	if _, _, err := k.GetStringValue(runValueName); err != nil {
+		return false
+	}
+	return true
+}
+
 // enableLoginItem adds an HKCU Run entry that starts the tray at login, running
 // the current executable with the "menubar" subcommand. Launching the windowsgui
 // md-paste-tray.exe this way shows no console window.

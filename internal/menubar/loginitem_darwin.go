@@ -59,6 +59,12 @@ func loginItemEnabled() bool {
 	return err == nil
 }
 
+// loginItemPresent reports whether a login item exists. On macOS this equals
+// loginItemEnabled because the plist location is path-independent; it exists so
+// first-run migration can seed the config from any existing autostart entry the
+// same way the Windows backend does.
+func loginItemPresent() bool { return loginItemEnabled() }
+
 // enableLoginItem installs a per-user LaunchAgent so md-paste starts at login.
 // This approach is signing-independent, unlike SMAppService which needs a
 // Developer ID-signed, notarized app bundle.

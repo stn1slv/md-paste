@@ -105,6 +105,9 @@ func registerHotkey(spec string, onFire func()) (func(), error) {
 			readyCh <- ready{err: fmt.Errorf("failed to register hotkey %q, the combination may already be in use: %w", spec, callErr)}
 			return
 		}
+		// Release the hotkey on every exit path (the wmApp stop signal, WM_QUIT,
+		// or a GetMessage error), not only the explicit stop.
+		defer func() { _, _, _ = procUnregisterHotKey.Call(0, hotkeyID) }()
 		readyCh <- ready{tid: uint32(tid)} //nolint:gosec // GetCurrentThreadId returns a DWORD (fits uint32)
 
 		var m msg
@@ -112,14 +115,13 @@ func registerHotkey(spec string, onFire func()) (func(), error) {
 			//nolint:gosec // MSG pointer for GetMessageW; ret is a BOOL (-1/0/1)
 			r1, _, _ := procGetMessageW.Call(uintptr(unsafe.Pointer(&m)), 0, 0, 0)
 			if int32(r1) <= 0 { //nolint:gosec // GetMessage BOOL: 0 = WM_QUIT, -1 = error
-				break
+				return
 			}
 			switch m.message {
 			case wmHotkey:
 				// Run off the message loop so conversion never stalls it.
 				go onFire()
 			case wmApp:
-				_, _, _ = procUnregisterHotKey.Call(0, hotkeyID)
 				return
 			}
 		}
