@@ -22,6 +22,16 @@ func formatRunValue(exe string) string {
 	return `"` + exe + `"`
 }
 
+// startupCommand is the command line stored in the Run key. It explicitly passes
+// the "menubar" subcommand so autostart starts the tray regardless of which
+// binary enabled it: the windowsgui md-paste-tray.exe (no console window) or the
+// console md-paste.exe run as `md-paste menubar`. Relying on the tray build's
+// injected default command alone would make the console binary start a one-shot
+// conversion at login instead.
+func startupCommand(exe string) string {
+	return formatRunValue(exe) + " menubar"
+}
+
 // loginItemEnabled reports whether the HKCU Run entry points at the current
 // executable. Requiring a match (not just presence) means a stale entry left by
 // a moved or updated binary reads as disabled and is self-healed the next time
@@ -42,7 +52,7 @@ func loginItemEnabled() bool {
 	if err != nil {
 		return true
 	}
-	return strings.EqualFold(val, formatRunValue(exe))
+	return strings.EqualFold(val, startupCommand(exe))
 }
 
 // reconcileLoginItem repairs a stale Run entry: when an entry exists (by name)
@@ -64,14 +74,14 @@ func reconcileLoginItem() {
 	if err != nil {
 		return
 	}
-	if want := formatRunValue(exe); !strings.EqualFold(val, want) {
+	if want := startupCommand(exe); !strings.EqualFold(val, want) {
 		_ = k.SetStringValue(runValueName, want)
 	}
 }
 
-// enableLoginItem adds an HKCU Run entry that starts the tray at login. It points
-// at the currently running executable (the windowsgui md-paste-tray.exe), which
-// defaults to the menu bar, so no console window appears at startup.
+// enableLoginItem adds an HKCU Run entry that starts the tray at login, running
+// the current executable with the "menubar" subcommand. Launching the windowsgui
+// md-paste-tray.exe this way shows no console window.
 func enableLoginItem() error {
 	exe, err := os.Executable()
 	if err != nil {
@@ -82,7 +92,7 @@ func enableLoginItem() error {
 		return fmt.Errorf("failed to open Run key: %w", err)
 	}
 	defer func() { _ = k.Close() }()
-	if err := k.SetStringValue(runValueName, formatRunValue(exe)); err != nil {
+	if err := k.SetStringValue(runValueName, startupCommand(exe)); err != nil {
 		return fmt.Errorf("failed to write Run value: %w", err)
 	}
 	return nil

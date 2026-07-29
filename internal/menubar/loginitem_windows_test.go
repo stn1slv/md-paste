@@ -17,6 +17,15 @@ func TestFormatRunValue(t *testing.T) {
 	)
 }
 
+func TestStartupCommand(t *testing.T) {
+	// The Run value must include the "menubar" subcommand so autostart starts the
+	// tray for both the tray build and the console binary.
+	assert.Equal(t,
+		`"C:\Program Files\md-paste\md-paste-tray.exe" menubar`,
+		startupCommand(`C:\Program Files\md-paste\md-paste-tray.exe`),
+	)
+}
+
 func TestRunKeyConstants(t *testing.T) {
 	assert.Equal(t, `Software\Microsoft\Windows\CurrentVersion\Run`, runKeyPath)
 	assert.Equal(t, "md-paste", runValueName)
