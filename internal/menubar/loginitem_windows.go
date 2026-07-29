@@ -21,15 +21,26 @@ func formatRunValue(exe string) string {
 	return `"` + exe + `"`
 }
 
-// loginItemEnabled reports whether the HKCU Run entry for the tray is present.
+// loginItemEnabled reports whether the HKCU Run entry points at the current
+// executable. Requiring a match (not just presence) means a stale entry left by
+// a moved or updated binary reads as disabled and is self-healed the next time
+// the user toggles it on. If the executable path cannot be resolved, it falls
+// back to treating any present entry as enabled.
 func loginItemEnabled() bool {
 	k, err := registry.OpenKey(registry.CURRENT_USER, runKeyPath, registry.QUERY_VALUE)
 	if err != nil {
 		return false
 	}
 	defer func() { _ = k.Close() }()
-	_, _, err = k.GetStringValue(runValueName)
-	return err == nil
+	val, _, err := k.GetStringValue(runValueName)
+	if err != nil {
+		return false
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return true
+	}
+	return val == formatRunValue(exe)
 }
 
 // enableLoginItem adds an HKCU Run entry that starts the tray at login. It points
