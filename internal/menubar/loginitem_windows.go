@@ -55,30 +55,6 @@ func loginItemEnabled() bool {
 	return strings.EqualFold(val, startupCommand(exe))
 }
 
-// reconcileLoginItem repairs a stale Run entry: when an entry exists (by name)
-// but points at a different path (e.g. after a WinGet update to a new versioned
-// directory), it is rewritten to the current executable so login autostart keeps
-// working without the user having to re-toggle it. A missing entry means the user
-// disabled autostart and is left untouched.
-func reconcileLoginItem() {
-	k, err := registry.OpenKey(registry.CURRENT_USER, runKeyPath, registry.QUERY_VALUE|registry.SET_VALUE)
-	if err != nil {
-		return
-	}
-	defer func() { _ = k.Close() }()
-	val, _, err := k.GetStringValue(runValueName)
-	if err != nil {
-		return // not enabled; nothing to reconcile
-	}
-	exe, err := os.Executable()
-	if err != nil {
-		return
-	}
-	if want := startupCommand(exe); !strings.EqualFold(val, want) {
-		_ = k.SetStringValue(runValueName, want)
-	}
-}
-
 // enableLoginItem adds an HKCU Run entry that starts the tray at login, running
 // the current executable with the "menubar" subcommand. Launching the windowsgui
 // md-paste-tray.exe this way shows no console window.
