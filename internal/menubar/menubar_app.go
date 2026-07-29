@@ -1,4 +1,4 @@
-//go:build darwin
+//go:build darwin || windows
 
 package menubar
 
@@ -40,6 +40,10 @@ func Run(cfg Config) error {
 func (a *app) onReady() {
 	systray.SetTemplateIcon(iconNormal, iconNormal)
 	systray.SetTooltip("md-paste")
+
+	// Repair a stale login-item entry (e.g. after an update moved the binary)
+	// before seeding the checkbox, so autostart survives updates.
+	reconcileLoginItem()
 
 	a.mConvert = systray.AddMenuItem(convertLabel, "Convert the current clipboard content to Markdown")
 	mLogin := systray.AddMenuItemCheckbox("Launch at login", "Start md-paste automatically after you log in", loginItemEnabled())

@@ -37,8 +37,31 @@ builds:
       - -X github.com/stn1slv/md-paste/internal/cli.commit={{ .Commit }}
       - -X github.com/stn1slv/md-paste/internal/cli.date={{ .Date }}
 
+  # Windows system tray build: GUI subsystem (-H=windowsgui) so no console
+  # window appears, and defaultCommand=menubar so a no-arg launch starts the tray.
+  - id: md-paste-tray
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    main: ./cmd/md-paste
+    binary: md-paste-tray
+    ldflags:
+      - -s -w
+      - -H=windowsgui
+      - -X github.com/stn1slv/md-paste/internal/cli.version={{ .Version }}
+      - -X github.com/stn1slv/md-paste/internal/cli.commit={{ .Commit }}
+      - -X github.com/stn1slv/md-paste/internal/cli.date={{ .Date }}
+      - -X github.com/stn1slv/md-paste/internal/cli.defaultCommand=menubar
+
 archives:
-  - format: tar.gz
+  - id: unix
+    ids:
+      - md-paste-macos
+    formats: [tar.gz]
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
@@ -46,9 +69,20 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-    format_overrides:
-      - goos: windows
-        format: zip
+  # Windows zip bundles both the console CLI (md-paste.exe) and the tray
+  # (md-paste-tray.exe).
+  - id: windows
+    ids:
+      - md-paste-windows
+      - md-paste-tray
+    formats: [zip]
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
 
 changelog:
   sort: asc
@@ -70,3 +104,32 @@ brews:
     license: "MIT"
     test: |
       system "#{bin}/md-paste", "--version"
+
+# Windows package manager. GoReleaser generates the WinGet manifests from the
+# Windows zip (which bundles md-paste.exe and md-paste-tray.exe) and opens a PR
+# to microsoft/winget-pkgs from the stn1slv/winget-pkgs fork. Merging is subject
+# to Microsoft's automated validation and manual review.
+winget:
+  - name: md-paste
+    publisher: stn1slv
+    publisher_url: "https://github.com/stn1slv"
+    package_identifier: stn1slv.md-paste
+    license: MIT
+    homepage: "https://github.com/stn1slv/md-paste"
+    short_description: "Convert rich text on the clipboard to Markdown"
+    description: |
+      md-paste reads HTML from the system clipboard, converts it to Markdown, and
+      writes it back. It ships a console CLI (md-paste.exe) and a system tray app
+      (md-paste-tray.exe) that converts the clipboard from the tray menu.
+    repository:
+      owner: stn1slv
+      name: winget-pkgs
+      branch: "md-paste-{{ .Version }}"
+      token: "{{ .Env.WINGET_GITHUB_TOKEN }}"
+      pull_request:
+        enabled: true
+        draft: false
+        base:
+          owner: microsoft
+          name: winget-pkgs
+          branch: master

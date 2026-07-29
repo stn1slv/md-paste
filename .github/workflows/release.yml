@@ -39,6 +39,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Used to push the formula to stn1slv/homebrew-tap
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          # Used to open the WinGet manifest PR from the stn1slv/winget-pkgs fork
+          WINGET_GITHUB_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
 
       # GoReleaser (OSS) cannot assemble a macOS .app bundle, so the menu bar
       # app is bundled here and published as a Homebrew Cask to the same tap.

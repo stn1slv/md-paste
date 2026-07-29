@@ -17,6 +17,11 @@ var (
 	version = "dev"
 	commit  = "none"
 	date    = "unknown"
+
+	// defaultCommand, when set via -ldflags, is the subcommand a no-argument
+	// launch runs. The windowsgui md-paste-tray.exe build injects "menubar" so
+	// launching it (with no args) starts the tray. Empty for the normal CLI.
+	defaultCommand = ""
 )
 
 var (
@@ -57,10 +62,16 @@ func init() {
 
 // Execute is the main entry point for the CLI.
 func Execute() error {
-	// When launched by double-clicking the .app bundle (no CLI arguments),
-	// default to the menu bar app instead of a one-shot conversion.
-	if len(os.Args) == 1 && isBundleLaunch() {
-		rootCmd.SetArgs([]string{menubarCmd.Use})
+	// With no CLI arguments, default to the menu bar app when either the tray
+	// build injected a default command (windowsgui md-paste-tray.exe) or the
+	// binary was launched from inside a macOS .app bundle. Otherwise run the CLI.
+	if len(os.Args) == 1 {
+		switch {
+		case defaultCommand != "":
+			rootCmd.SetArgs([]string{defaultCommand})
+		case isBundleLaunch():
+			rootCmd.SetArgs([]string{menubarCmd.Use})
+		}
 	}
 	return rootCmd.Execute()
 }

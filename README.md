@@ -29,9 +29,19 @@ may block it. If that happens, clear the quarantine attribute:
 xattr -dr com.apple.quarantine "/Applications/md-paste.app"
 ```
 
+### Windows
+Install via WinGet:
+```powershell
+winget install stn1slv.md-paste
+```
+This installs two commands: `md-paste` (the console CLI) and `md-paste-tray` (the
+system tray app). You can also download the Windows zip from the
+[Releases](https://github.com/stn1slv/md-paste/releases) page, which contains both
+`md-paste.exe` and `md-paste-tray.exe`.
+
 ### Build from source
 #### Prerequisites
-- macOS (requires native Cocoa/AppKit libraries)
+- macOS (requires native Cocoa/AppKit libraries) or Windows
 - Go 1.26+
 
 #### Build steps
@@ -76,6 +86,13 @@ The binary will be available in `./bin/md-paste`.
   Adds an icon to the menu bar. Click "Convert clipboard to Markdown" to convert
   the clipboard in place (the icon briefly shows a checkmark on success). Use the
   "Launch at login" toggle to start the app automatically after you log in.
+
+- **Run as a system tray app (Windows)**:
+  Launch `md-paste-tray.exe` (no console window appears). Right-click the tray
+  icon and choose "Convert clipboard to Markdown" to convert the clipboard in
+  place (the icon briefly turns into a checkmark on success). Use the "Launch at
+  login" toggle to start it automatically at sign-in. The console `md-paste.exe`
+  still works as the CLI, including `md-paste --stdout`.
 
 ## Development
 See the [Constitution](.specify/memory/constitution.md) for core principles.
