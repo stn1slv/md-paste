@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"golang.org/x/sys/windows/registry"
 )
@@ -25,7 +26,8 @@ func formatRunValue(exe string) string {
 // executable. Requiring a match (not just presence) means a stale entry left by
 // a moved or updated binary reads as disabled and is self-healed the next time
 // the user toggles it on. If the executable path cannot be resolved, it falls
-// back to treating any present entry as enabled.
+// back to treating any present entry as enabled. The comparison is
+// case-insensitive because Windows paths are.
 func loginItemEnabled() bool {
 	k, err := registry.OpenKey(registry.CURRENT_USER, runKeyPath, registry.QUERY_VALUE)
 	if err != nil {
@@ -40,7 +42,7 @@ func loginItemEnabled() bool {
 	if err != nil {
 		return true
 	}
-	return val == formatRunValue(exe)
+	return strings.EqualFold(val, formatRunValue(exe))
 }
 
 // reconcileLoginItem repairs a stale Run entry: when an entry exists (by name)
@@ -62,7 +64,7 @@ func reconcileLoginItem() {
 	if err != nil {
 		return
 	}
-	if want := formatRunValue(exe); val != want {
+	if want := formatRunValue(exe); !strings.EqualFold(val, want) {
 		_ = k.SetStringValue(runValueName, want)
 	}
 }
