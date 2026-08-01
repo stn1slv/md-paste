@@ -86,7 +86,7 @@ import (
 )
 
 // defaultHotkey is the shortcut used when the config has none.
-const defaultHotkey = "cmd+opt+m"
+const defaultHotkey = "ctrl+cmd+opt+m"
 
 // Carbon modifier masks (from HIToolbox Events.h).
 var macModifiers = map[string]uint32{

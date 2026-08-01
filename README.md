@@ -10,7 +10,7 @@ When copying from a browser or a word processor, the clipboard stores rich text.
 - **HTML Priority**: Automatically detects HTML and converts it. Falls back to plain text if needed.
 - **Pipe-Friendly**: Unix philosophy support with an optional `--stdout` flag.
 - **Menu Bar / Tray App (macOS & Windows)**: Optional resident app to convert the clipboard with a single click, with a "Launch at login" toggle.
-- **Configurable Global Shortcut**: Trigger a conversion from any app with a customizable system-wide hotkey (default `Cmd+Opt+M` on macOS, `Ctrl+Alt+M` on Windows).
+- **Configurable Global Shortcut**: Trigger a conversion from any app with a customizable system-wide hotkey (default `Ctrl+Cmd+Opt+M` on macOS, `Ctrl+Alt+M` on Windows).
 
 ## Installation
 
@@ -86,8 +86,8 @@ The binary will be available in `./bin/md-paste`.
   ```
   Adds an icon to the menu bar. Click "Convert clipboard to Markdown" to convert
   the clipboard in place (the icon briefly shows a checkmark on success), or press
-  the global shortcut (default `Cmd+Opt+M`) from any app. Use the "Launch at login"
-  toggle to start the app automatically after you log in.
+  the global shortcut (default `Ctrl+Cmd+Opt+M`) from any app. Use the "Launch at
+  login" toggle to start the app automatically after you log in.
 
 - **Run as a system tray app (Windows)**:
   Launch `md-paste-tray.exe` (no console window appears). Right-click the tray
@@ -107,7 +107,7 @@ run:
 - Windows: `%AppData%\md-paste\config.yaml`
 
 ```yaml
-hotkey: cmd+opt+m       # macOS default; use e.g. "ctrl+alt+m" on Windows
+hotkey: ctrl+cmd+opt+m  # macOS default; use e.g. "ctrl+alt+m" on Windows
 launch_at_login: false
 ```
 

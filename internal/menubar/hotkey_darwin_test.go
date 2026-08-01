@@ -24,6 +24,6 @@ func TestCarbonModifiers(t *testing.T) {
 func TestMacKeyCodeDefault(t *testing.T) {
 	mods, key, err := splitHotkey(defaultHotkey)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"cmd", "opt"}, mods)
+	assert.Equal(t, []string{"ctrl", "cmd", "opt"}, mods)
 	assert.Equal(t, uint32(0x2E), macKeyCodes[key]) // kVK_ANSI_M
 }
