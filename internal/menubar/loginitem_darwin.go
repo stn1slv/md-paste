@@ -59,10 +59,11 @@ func loginItemEnabled() bool {
 	return err == nil
 }
 
-// reconcileLoginItem is a no-op on macOS: the LaunchAgent lives at a stable
-// ~/Library path and the app installs to /Applications, so the recorded
-// executable path does not drift the way a versioned Windows install path can.
-func reconcileLoginItem() {}
+// loginItemPresent reports whether a login item exists. On macOS this equals
+// loginItemEnabled because the plist location is path-independent; it exists so
+// first-run migration can seed the config from any existing autostart entry the
+// same way the Windows backend does.
+func loginItemPresent() bool { return loginItemEnabled() }
 
 // enableLoginItem installs a per-user LaunchAgent so md-paste starts at login.
 // This approach is signing-independent, unlike SMAppService which needs a

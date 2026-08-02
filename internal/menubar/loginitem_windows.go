@@ -55,28 +55,21 @@ func loginItemEnabled() bool {
 	return strings.EqualFold(val, startupCommand(exe))
 }
 
-// reconcileLoginItem repairs a stale Run entry: when an entry exists (by name)
-// but points at a different path (e.g. after a WinGet update to a new versioned
-// directory), it is rewritten to the current executable so login autostart keeps
-// working without the user having to re-toggle it. A missing entry means the user
-// disabled autostart and is left untouched.
-func reconcileLoginItem() {
-	k, err := registry.OpenKey(registry.CURRENT_USER, runKeyPath, registry.QUERY_VALUE|registry.SET_VALUE)
+// loginItemPresent reports whether an autostart Run entry exists by name,
+// regardless of whether its stored path matches the current executable. First-run
+// migration seeds the config from this so a stale entry (e.g. after a WinGet
+// update to a new versioned directory) migrates as enabled and enableLoginItem
+// heals the path, instead of being deleted.
+func loginItemPresent() bool {
+	k, err := registry.OpenKey(registry.CURRENT_USER, runKeyPath, registry.QUERY_VALUE)
 	if err != nil {
-		return
+		return false
 	}
 	defer func() { _ = k.Close() }()
-	val, _, err := k.GetStringValue(runValueName)
-	if err != nil {
-		return // not enabled; nothing to reconcile
+	if _, _, err := k.GetStringValue(runValueName); err != nil {
+		return false
 	}
-	exe, err := os.Executable()
-	if err != nil {
-		return
-	}
-	if want := startupCommand(exe); !strings.EqualFold(val, want) {
-		_ = k.SetStringValue(runValueName, want)
-	}
+	return true
 }
 
 // enableLoginItem adds an HKCU Run entry that starts the tray at login, running
