@@ -121,6 +121,11 @@ winget:
       md-paste reads HTML from the system clipboard, converts it to Markdown, and
       writes it back. It ships a console CLI (md-paste.exe) and a system tray app
       (md-paste-tray.exe) that converts the clipboard from the tray menu.
+    # TEMPORARY: do not open a winget PR while the initial submission is still
+    # pending moderator approval (avoids a second competing New-Package PR). The
+    # manifest is still generated under dist/ for inspection. Remove this line to
+    # resume publishing once the package is merged into microsoft/winget-pkgs.
+    skip_upload: true
     repository:
       owner: stn1slv
       name: winget-pkgs
