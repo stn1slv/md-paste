@@ -4,12 +4,21 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/stn1slv/md-paste/internal/atomicfile"
 	"github.com/stn1slv/md-paste/internal/models"
 )
+
+// rawFileMode keeps exported clipboard data readable by its owner only. The
+// clipboard routinely holds passwords, tokens and other private content, so it
+// must not land on disk world-readable.
+const rawFileMode = 0o600
 
 // SaveRaw saves the raw clipboard content to a file.
 // It prioritizes RawHTML over PlainText.
 // It returns an error if the path is a directory or if the file cannot be written.
+// The write is atomic and replaces the destination rather than writing through
+// it, so an interrupted run cannot truncate a previous export and a symlink at
+// the path is not followed.
 func SaveRaw(path string, content models.ClipboardContent) error {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -31,8 +40,7 @@ func SaveRaw(path string, content models.ClipboardContent) error {
 		return nil
 	}
 
-	//nolint:gosec // File is intended to be readable by others (0644)
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := atomicfile.Write(path, data, rawFileMode); err != nil {
 		return fmt.Errorf("failed to write file %q: %w", path, err)
 	}
 

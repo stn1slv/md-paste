@@ -5,9 +5,11 @@ package clipboard
 
 import (
 	"fmt"
+	"log/slog"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unicode/utf16"
@@ -44,14 +46,28 @@ var (
 	procGlobalSize               = kernel32.NewProc("GlobalSize")
 
 	cfHTMLFormat uint32
+
+	// clipboardMu serializes access to the single system clipboard.
+	// runtime.LockOSThread only pins a goroutine to its thread; it does not stop
+	// two goroutines from opening the clipboard at once, which the tray app can
+	// do when the global shortcut fires during a menu-driven conversion.
+	clipboardMu sync.Mutex
 )
 
 func init() {
 	name, err := syscall.UTF16PtrFromString("HTML Format")
-	if err == nil {
-		r, _, _ := procRegisterClipboardFormatW.Call(uintptr(unsafe.Pointer(name)))
-		cfHTMLFormat = uint32(r)
+	if err != nil {
+		slog.Error("failed to encode the HTML clipboard format name, rich paste is disabled", "error", err)
+		return
 	}
+	r, _, callErr := procRegisterClipboardFormatW.Call(uintptr(unsafe.Pointer(name)))
+	if r == 0 {
+		// Without this format the clipboard can only be read as plain text.
+		// Say so, otherwise rich paste silently stops working.
+		slog.Error("failed to register the HTML clipboard format, falling back to plain text", "error", callErr)
+		return
+	}
+	cfHTMLFormat = uint32(r)
 }
 
 // openClipboard opens the system clipboard, retrying briefly while another
@@ -72,8 +88,13 @@ func openClipboard() error {
 	return fmt.Errorf("OpenClipboard: %w", lastErr)
 }
 
+// closeClipboard releases the clipboard. A failure here matters in the resident
+// tray app: the clipboard would stay owned by this process and every later
+// operation would fail, so record it rather than dropping it silently.
 func closeClipboard() {
-	procCloseClipboard.Call() //nolint:errcheck
+	if r, _, err := procCloseClipboard.Call(); r == 0 {
+		slog.Error("failed to close the clipboard, later operations may fail", "error", err)
+	}
 }
 
 // lockGlobal calls GlobalLock and returns a pointer to the locked memory.
@@ -193,6 +214,9 @@ func parseWindowsHTMLFormat(data []byte) string {
 
 // Read retrieves content from the Windows system clipboard.
 func Read() (models.ClipboardContent, error) {
+	clipboardMu.Lock()
+	defer clipboardMu.Unlock()
+
 	// OpenClipboard associates the clipboard with the calling OS thread; every
 	// subsequent clipboard syscall must run on that same thread or it fails
 	// with ERROR_CLIPBOARD_NOT_OPEN. Pin the goroutine to prevent migration.
@@ -232,6 +256,9 @@ func Read() (models.ClipboardContent, error) {
 // WriteMarkdown writes the converted Markdown string to the clipboard as
 // CF_UNICODETEXT (UTF-16 LE with null terminator).
 func WriteMarkdown(text string) error {
+	clipboardMu.Lock()
+	defer clipboardMu.Unlock()
+
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
@@ -277,6 +304,9 @@ func WriteMarkdown(text string) error {
 
 // Clear empties the system clipboard.
 func Clear() error {
+	clipboardMu.Lock()
+	defer clipboardMu.Unlock()
+
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 

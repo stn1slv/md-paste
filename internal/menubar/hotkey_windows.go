@@ -4,6 +4,7 @@ package menubar
 
 import (
 	"fmt"
+	"log/slog"
 	"runtime"
 	"syscall"
 	"unsafe"
@@ -133,7 +134,13 @@ func registerHotkey(spec string, onFire func()) (func(), error) {
 	}
 	tid := res.tid
 	return func() {
-		_, _, _ = procPostThreadMessageW.Call(uintptr(tid), wmApp, 0, 0)
+		if r, _, err := procPostThreadMessageW.Call(uintptr(tid), wmApp, 0, 0); r == 0 {
+			// The message loop already exited, for example via the GetMessage
+			// error path. Its deferred UnregisterHotKey has already released the
+			// registration, so this is recoverable, but say so instead of
+			// silently assuming the stop signal was delivered.
+			slog.Warn("the hotkey message loop had already exited when unbinding", "hotkey", spec, "error", err)
+		}
 	}, nil
 }
 

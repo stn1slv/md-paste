@@ -48,6 +48,39 @@ func TestSaveRaw(t *testing.T) {
 		assert.Equal(t, content.PlainText, string(data))
 	})
 
+	t.Run("Saved file is readable by its owner only", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("Windows does not model POSIX permission bits")
+		}
+		path := filepath.Join(tmpDir, "perm.html")
+		content := models.ClipboardContent{
+			RawHTML:     "<p>secret</p>",
+			ContentType: models.ContentTypeHTML,
+		}
+
+		require.NoError(t, SaveRaw(path, content))
+
+		info, err := os.Stat(path)
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0o600), info.Mode().Perm(),
+			"clipboard exports may contain credentials and must not be world-readable")
+	})
+
+	t.Run("Creates the parent directory", func(t *testing.T) {
+		path := filepath.Join(tmpDir, "nested", "raw.html")
+		content := models.ClipboardContent{
+			RawHTML:     "<p>hi</p>",
+			ContentType: models.ContentTypeHTML,
+		}
+
+		require.NoError(t, SaveRaw(path, content))
+
+		//nolint:gosec // Test reads from known path
+		data, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, content.RawHTML, string(data))
+	})
+
 	t.Run("Error if path is a directory", func(t *testing.T) {
 		path := tmpDir
 		content := models.ClipboardContent{
