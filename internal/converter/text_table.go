@@ -28,6 +28,11 @@ func ExtractTableFromText(text string) (models.Table, bool) {
 
 var listMarker = regexp.MustCompile(`^(\d+[\.\)]|[-*•+])\s*$`)
 
+// minMultiColRows is the smallest number of multi-column rows that can look like
+// a table. A single such row inside a block of prose is far more likely to be a
+// sentence containing a double space than a table.
+const minMultiColRows = 2
+
 func isTabular(table models.Table) bool {
 	if len(table.Rows) < 2 {
 		return false
@@ -35,9 +40,12 @@ func isTabular(table models.Table) bool {
 
 	multiColRows := 0
 	listLikeRows := 0
+	// countByWidth maps a column count to how many rows have exactly that many.
+	countByWidth := make(map[int]int)
 	for _, row := range table.Rows {
 		if len(row.Cells) > 1 {
 			multiColRows++
+			countByWidth[len(row.Cells)]++
 			if len(row.Cells) == 2 && listMarker.MatchString(row.Cells[0].Content) {
 				listLikeRows++
 			}
@@ -49,9 +57,28 @@ func isTabular(table models.Table) bool {
 		return false
 	}
 
-	// Heuristic 2: Majority of rows should have multiple columns to be considered a table.
-	// This filters out regular text blocks.
-	return multiColRows*2 >= len(table.Rows)
+	// Heuristic 2: One multi-column row is not evidence of a table.
+	if multiColRows < minMultiColRows {
+		return false
+	}
+
+	// Heuristic 3: At least two thirds of the rows must have multiple columns.
+	// This filters out prose blocks where only some lines happen to contain a
+	// double space (for example after a sentence-ending period).
+	if multiColRows*3 < len(table.Rows)*2 {
+		return false
+	}
+
+	// Heuristic 4: Real tables are close to rectangular. Require the most common
+	// column count to cover at least half of the multi-column rows, so text whose
+	// rows disagree wildly on their width is rejected.
+	widest := 0
+	for _, n := range countByWidth {
+		if n > widest {
+			widest = n
+		}
+	}
+	return widest*2 >= multiColRows
 }
 
 func parseTextToRows(lines []string) models.Table {
@@ -62,17 +89,13 @@ func parseTextToRows(lines []string) models.Table {
 			continue
 		}
 
-		// Split by the separator (2+ spaces or tab)
-		parts := colSeparator.Split(line, -1)
+		// Split the trimmed line: leading indentation would otherwise match the
+		// separator and produce a spurious empty first column.
+		parts := colSeparator.Split(trimmed, -1)
 
 		cleanParts := make([]string, 0, len(parts))
 		for _, p := range parts {
 			cleanParts = append(cleanParts, strings.TrimSpace(p))
-		}
-
-		// Remove trailing empty parts introduced by trailing whitespace
-		for len(cleanParts) > 0 && cleanParts[len(cleanParts)-1] == "" {
-			cleanParts = cleanParts[:len(cleanParts)-1]
 		}
 
 		if len(cleanParts) > 0 {

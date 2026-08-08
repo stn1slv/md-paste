@@ -10,71 +10,61 @@ func FlattenTable(table models.Table) models.Table {
 		return table
 	}
 
-	maxCols := calculateMaxColumns(table)
-	rowCount := len(table.Rows)
-
-	grid := make([][]models.Cell, rowCount)
-	occupied := make([][]bool, rowCount)
-	for i := 0; i < rowCount; i++ {
-		grid[i] = make([]models.Cell, maxCols)
-		occupied[i] = make([]bool, maxCols)
-		// Pre-fill the grid so every cell starts with default spans and alignment instead of zero values.
-		for j := 0; j < maxCols; j++ {
-			grid[i][j] = models.Cell{
-				RowSpan:   1,
-				ColSpan:   1,
-				Alignment: models.AlignNone,
-			}
-		}
-	}
-
-	populateGrid(table, grid, occupied, rowCount, maxCols)
-
-	return rebuildTable(table, grid, rowCount)
-}
-
-func calculateMaxColumns(table models.Table) int {
-	maxCols := 0
-	for _, row := range table.Rows {
-		width := 0
-		for _, cell := range row.Cells {
-			if cell.ColSpan > 1 {
-				width += cell.ColSpan
-			} else {
-				width++
-			}
-		}
-		if width > maxCols {
-			maxCols = width
-		}
-	}
-	return maxCols
-}
-
-func populateGrid(table models.Table, grid [][]models.Cell, occupied [][]bool, rowCount, maxCols int) {
+	g := newGrid(len(table.Rows))
 	for r, row := range table.Rows {
 		col := 0
 		for _, sourceCell := range row.Cells {
-			for col < maxCols && occupied[r][col] {
-				col++
-			}
-			if col >= maxCols {
-				break
-			}
-			col += fillSpan(sourceCell, grid, occupied, r, col, rowCount, maxCols)
+			col = g.nextFree(r, col)
+			col += g.fill(sourceCell, r, col)
 		}
+	}
+
+	return g.rebuild(table)
+}
+
+// grid is a cell grid whose rows widen on demand. The width cannot be derived
+// from the source rows up front: a rowspan reaching down from an earlier row
+// claims columns in later rows, pushing their own cells to the right, so a row
+// can end up wider than its cell count. Growing on placement keeps every cell.
+type grid struct {
+	cells    [][]models.Cell
+	occupied [][]bool
+}
+
+func newGrid(rowCount int) *grid {
+	return &grid{
+		cells:    make([][]models.Cell, rowCount),
+		occupied: make([][]bool, rowCount),
 	}
 }
 
-func fillSpan(sourceCell models.Cell, grid [][]models.Cell, occupied [][]bool, r, col, rowCount, maxCols int) int {
-	rowSpan := sourceCell.RowSpan
-	if rowSpan < 1 {
-		rowSpan = 1
+// ensureWidth grows row r to at least width columns, padding with empty cells
+// that carry default spans and alignment rather than zero values.
+func (g *grid) ensureWidth(r, width int) {
+	for len(g.cells[r]) < width {
+		g.cells[r] = append(g.cells[r], models.Cell{
+			RowSpan:   1,
+			ColSpan:   1,
+			Alignment: models.AlignNone,
+		})
+		g.occupied[r] = append(g.occupied[r], false)
 	}
-	colSpan := sourceCell.ColSpan
-	if colSpan < 1 {
-		colSpan = 1
+}
+
+// nextFree returns the first column at or after col that is still free in row r.
+func (g *grid) nextFree(r, col int) int {
+	for col < len(g.occupied[r]) && g.occupied[r][col] {
+		col++
 	}
+	return col
+}
+
+// fill writes sourceCell into every position its spans cover and returns the
+// number of columns it consumed. A rowspan reaching past the last row is
+// truncated; columns are never truncated.
+func (g *grid) fill(sourceCell models.Cell, r, col int) int {
+	rowSpan := max(sourceCell.RowSpan, 1)
+	colSpan := max(sourceCell.ColSpan, 1)
 
 	targetCell := models.Cell{
 		Content:   sourceCell.Content,
@@ -83,27 +73,35 @@ func fillSpan(sourceCell models.Cell, grid [][]models.Cell, occupied [][]bool, r
 		ColSpan:   1,
 	}
 
-	for dr := 0; dr < rowSpan; dr++ {
+	for dr := 0; dr < rowSpan && r+dr < len(g.cells); dr++ {
+		g.ensureWidth(r+dr, col+colSpan)
 		for dc := 0; dc < colSpan; dc++ {
-			targetR, targetC := r+dr, col+dc
-			if targetR < rowCount && targetC < maxCols {
-				grid[targetR][targetC] = targetCell
-				occupied[targetR][targetC] = true
-			}
+			g.cells[r+dr][col+dc] = targetCell
+			g.occupied[r+dr][col+dc] = true
 		}
 	}
+
 	return colSpan
 }
 
-func rebuildTable(table models.Table, grid [][]models.Cell, rowCount int) models.Table {
+// rebuild pads every row to the widest one and returns the flattened table.
+func (g *grid) rebuild(table models.Table) models.Table {
+	maxCols := 0
+	for _, row := range g.cells {
+		if len(row) > maxCols {
+			maxCols = len(row)
+		}
+	}
+
 	newTable := models.Table{
 		HasHeader: table.HasHeader,
-		Rows:      make([]models.Row, rowCount),
+		Rows:      make([]models.Row, len(g.cells)),
 	}
-	for r := 0; r < rowCount; r++ {
+	for r := range g.cells {
+		g.ensureWidth(r, maxCols)
 		newTable.Rows[r] = models.Row{
 			IsHeader: table.Rows[r].IsHeader,
-			Cells:    grid[r],
+			Cells:    g.cells[r],
 		}
 	}
 	return newTable

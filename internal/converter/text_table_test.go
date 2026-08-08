@@ -131,6 +131,48 @@ func TestExtractTableFromText(t *testing.T) {
 			found: false,
 		},
 		{
+			// An indented line must not gain a leading empty column from the
+			// indentation matching the column separator.
+			name: "indented rows keep their column count",
+			text: "Col1  Col2\n\tVal1  Val2",
+			expected: models.Table{
+				Rows: []models.Row{
+					{
+						Cells: []models.Cell{
+							{Content: "Col1", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "Col2", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+						},
+					},
+					{
+						Cells: []models.Cell{
+							{Content: "Val1", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "Val2", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+						},
+					},
+				},
+			},
+			found: true,
+		},
+		{
+			name:  "indented prose is not a table",
+			text:  "Just some text\n  On multiple lines",
+			found: false,
+		},
+		{
+			// A single line with a double space inside a block of prose is not
+			// enough evidence of a table.
+			name:  "one double-spaced line in prose is not a table",
+			text:  "This is a sentence.  Next one here.\nAnother line follows.",
+			found: false,
+		},
+		{
+			// Rows that disagree wildly on their column count are prose split by
+			// incidental whitespace, not a table.
+			name:  "ragged column counts are not a table",
+			text:  "one  two\nthree  four  five\nsix  seven  eight  nine\nten  eleven  twelve  thirteen  fourteen",
+			found: false,
+		},
+		{
 			name:  "numbered list with tabs (should NOT be a table)",
 			text:  "1.\tFirst item\n2.\tSecond item",
 			found: false,

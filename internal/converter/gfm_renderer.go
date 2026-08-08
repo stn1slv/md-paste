@@ -14,28 +14,25 @@ func RenderTable(table models.Table) string {
 
 	var sb strings.Builder
 
-	// Prefer the first row explicitly marked as a header; if none is marked,
-	// fall back to treating the first row (index 0) as the header.
-	headerIndex := 0
-	for i, row := range table.Rows {
+	// GFM requires the header to be the first row, so rows are always emitted in
+	// their original order and row 0 becomes the header. When a later row is the
+	// one marked as the header (an HTML table whose first <th> row is not the
+	// first row), its column alignment still drives the separator, but no row is
+	// moved: reordering would silently scramble the data.
+	headerRow := table.Rows[0]
+	alignRow := headerRow
+	for _, row := range table.Rows {
 		if row.IsHeader {
-			headerIndex = i
+			alignRow = row
 			break
 		}
 	}
 
-	headerRow := table.Rows[headerIndex]
 	renderRow(&sb, headerRow)
 	sb.WriteString("\n")
+	renderSeparator(&sb, headerRow, alignRow)
 
-	// Render separator row based on header alignment
-	renderSeparator(&sb, headerRow)
-
-	// Render all other rows in their original order.
-	for i, row := range table.Rows {
-		if i == headerIndex {
-			continue
-		}
+	for _, row := range table.Rows[1:] {
 		sb.WriteString("\n")
 		renderRow(&sb, row)
 	}
@@ -53,12 +50,19 @@ func renderRow(sb *strings.Builder, row models.Row) {
 	}
 }
 
-func renderSeparator(sb *strings.Builder, headerRow models.Row) {
+// renderSeparator emits one separator column per header cell. Each column's
+// alignment comes from alignRow, which may be a different row than the one
+// rendered as the header; columns missing there fall back to no alignment.
+func renderSeparator(sb *strings.Builder, headerRow, alignRow models.Row) {
 	sb.WriteString("|")
-	for _, cell := range headerRow.Cells {
+	for i := range headerRow.Cells {
+		alignment := models.AlignNone
+		if i < len(alignRow.Cells) {
+			alignment = alignRow.Cells[i].Alignment
+		}
 		sb.WriteString(" ")
 		//nolint:exhaustive // Default handles AlignNone and any future alignments
-		switch cell.Alignment {
+		switch alignment {
 		case models.AlignLeft:
 			sb.WriteString(":---")
 		case models.AlignCenter:

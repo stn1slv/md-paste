@@ -87,6 +87,37 @@ func TestRenderTable(t *testing.T) {
 			expected: "| Line 1 Line 2 |\n| --- |",
 		},
 		{
+			// GFM forces the header to be the first row. A table whose marked
+			// header is not the first row must keep its row order; only the
+			// separator alignment is borrowed from the marked row.
+			name: "header row after the first row does not reorder rows",
+			table: models.Table{
+				HasHeader: true,
+				Rows: []models.Row{
+					{
+						Cells: []models.Cell{
+							{Content: "Caption A"},
+							{Content: "Caption B"},
+						},
+					},
+					{
+						IsHeader: true,
+						Cells: []models.Cell{
+							{Content: "Head A", Alignment: models.AlignRight},
+							{Content: "Head B", Alignment: models.AlignCenter},
+						},
+					},
+					{
+						Cells: []models.Cell{
+							{Content: "Data A"},
+							{Content: "Data B"},
+						},
+					},
+				},
+			},
+			expected: "| Caption A | Caption B |\n| ---: | :---: |\n| Head A | Head B |\n| Data A | Data B |",
+		},
+		{
 			name: "empty table",
 			table: models.Table{
 				Rows: []models.Row{},

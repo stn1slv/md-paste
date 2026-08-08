@@ -64,6 +64,32 @@ func TestFlattenTable(t *testing.T) {
 			},
 		},
 		{
+			// A rowspan in a row that has fewer cells than a later row pushes that
+			// later row's cells to the right. The grid must widen to fit them
+			// instead of dropping the overflow.
+			name: "rowspan widens the grid for a longer later row",
+			input: models.Table{
+				Rows: []models.Row{
+					{Cells: []models.Cell{{Content: mergedCell, RowSpan: 2}}},
+					{Cells: []models.Cell{{Content: "B"}, {Content: "C"}}},
+				},
+			},
+			expected: models.Table{
+				Rows: []models.Row{
+					{Cells: []models.Cell{
+						{Content: mergedCell, RowSpan: 1, ColSpan: 1},
+						{Content: "", RowSpan: 1, ColSpan: 1},
+						{Content: "", RowSpan: 1, ColSpan: 1},
+					}},
+					{Cells: []models.Cell{
+						{Content: mergedCell, RowSpan: 1, ColSpan: 1},
+						{Content: "B", RowSpan: 1, ColSpan: 1},
+						{Content: "C", RowSpan: 1, ColSpan: 1},
+					}},
+				},
+			},
+		},
+		{
 			name: "complex rowspan and colspan",
 			input: models.Table{
 				Rows: []models.Row{

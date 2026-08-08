@@ -42,6 +42,31 @@ func TestExtractTableFromHTML(t *testing.T) {
 			found: true,
 		},
 		{
+			// The first row is narrower than the second, so the rowspan pushes the
+			// second row's cells right. No cell may be dropped.
+			name: "rowspan in a short first row keeps every later cell",
+			html: `<table><tr><td rowspan="2">A</td></tr><tr><td>B</td><td>C</td></tr></table>`,
+			expected: models.Table{
+				Rows: []models.Row{
+					{
+						Cells: []models.Cell{
+							{Content: "A", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+						},
+					},
+					{
+						Cells: []models.Cell{
+							{Content: "A", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "B", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "C", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+						},
+					},
+				},
+			},
+			found: true,
+		},
+		{
 			name: "table with alignment",
 			html: `<table>
 				<tr>
