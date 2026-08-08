@@ -49,28 +49,50 @@ func (u *fakeUI) state() (title string, enabled bool, changes int) {
 	return u.title, u.enabled, u.titleChanges
 }
 
-func TestFlashOnlyTheLatestFlashRestores(t *testing.T) {
+// Timings for the flash tests. The two flashes are given deliberately lopsided
+// durations so the observation point sits far from both deadlines: equal
+// durations put the check at the very instant the second timer is due, which is
+// a coin flip no matter how precise the clock is.
+const (
+	shortFlash   = 50 * time.Millisecond
+	longFlash    = 10 * time.Second
+	observeAfter = 750 * time.Millisecond
+	settleWithin = 5 * time.Second
+	settlePoll   = 10 * time.Millisecond
+)
+
+func TestFlashSupersededFlashDoesNotRestore(t *testing.T) {
 	ui := &fakeUI{enabled: true}
 	a := &app{ui: ui}
 
-	const d = 60 * time.Millisecond
 	apply := func(msg string) func() { return func() { ui.setConvertTitle(msg) } }
 	restore := func() { ui.setConvertTitle(convertLabel) }
 
-	a.flash(&a.titleGen, apply("first"), restore, d)
-	time.Sleep(d / 3)
-	a.flash(&a.titleGen, apply("second"), restore, d)
+	a.flash(&a.titleGen, apply("first"), restore, shortFlash)
+	a.flash(&a.titleGen, apply("second"), restore, longFlash)
 
-	// The first flash's timer fires here. It must not restore, because the
-	// second flash is still meant to be showing.
-	time.Sleep(d)
+	// Well past the first flash's deadline and nowhere near the second's, so
+	// timer granularity on a loaded runner cannot move the check across either.
+	time.Sleep(observeAfter)
+
 	title, _, _ := ui.state()
-	assert.Equal(t, "second", title, "the earlier flash restored while a later one was showing")
+	assert.Equal(t, "second", title, "a superseded flash restored while a later one was still showing")
+}
 
-	// The second flash's timer restores.
-	time.Sleep(d)
-	title, _, _ = ui.state()
-	assert.Equal(t, convertLabel, title)
+func TestFlashLatestFlashRestores(t *testing.T) {
+	ui := &fakeUI{enabled: true}
+	a := &app{ui: ui}
+
+	a.flash(&a.titleGen,
+		func() { ui.setConvertTitle("flash") },
+		func() { ui.setConvertTitle(convertLabel) },
+		shortFlash,
+	)
+
+	require.Eventually(t, func() bool {
+		title, _, _ := ui.state()
+		return title == convertLabel
+	}, settleWithin, settlePoll, "the flash never restored the Convert item")
 }
 
 func TestFlashErrorDisablesConvertAndRestoresOnce(t *testing.T) {
@@ -103,18 +125,17 @@ func TestIconFlashDoesNotCancelAPendingTitleRestore(t *testing.T) {
 	ui := &fakeUI{enabled: true}
 	a := &app{ui: ui}
 
-	const d = 60 * time.Millisecond
 	a.flash(&a.titleGen,
 		func() { ui.setConvertTitle("error"); ui.setConvertEnabled(false) },
 		func() { ui.setConvertTitle(convertLabel); ui.setConvertEnabled(true) },
-		d,
+		shortFlash,
 	)
-	a.flash(&a.iconGen, func() { ui.setIcon(iconCheck) }, func() { ui.setIcon(iconNormal) }, d/2)
+	a.flash(&a.iconGen, func() { ui.setIcon(iconCheck) }, func() { ui.setIcon(iconNormal) }, shortFlash/2)
 
-	time.Sleep(2 * d)
-	title, enabled, _ := ui.state()
-	assert.Equal(t, convertLabel, title)
-	assert.True(t, enabled, "the Convert item was left disabled")
+	require.Eventually(t, func() bool {
+		title, enabled, _ := ui.state()
+		return title == convertLabel && enabled
+	}, settleWithin, settlePoll, "the icon flash cancelled the pending title restore")
 }
 
 // panicUI fails the way a broken systray would: from inside apply.
