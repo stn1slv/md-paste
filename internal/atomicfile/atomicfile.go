@@ -9,8 +9,8 @@
 // flushed before the rename, but the parent directory is not, so a power loss
 // can still lose the rename and leave the previous content in place. That is
 // the right trade for this application's small, rewritable files. A process
-// killed between creating the temporary file and renaming it leaves a hidden
-// .tmp file behind that nothing collects.
+// killed between creating the temporary file and renaming it leaves a .tmp file
+// behind that nothing collects.
 package atomicfile
 
 import (

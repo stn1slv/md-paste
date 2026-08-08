@@ -69,3 +69,24 @@ func TestPathEndsWithExpectedSuffix(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join("md-paste", "config.yaml"), filepath.Join(filepath.Base(filepath.Dir(path)), filepath.Base(path)))
 }
+
+func TestBackupMovesTheFileAside(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(path, []byte("hotkey: broken: yaml"), 0o600))
+
+	backup, err := Backup(path)
+	require.NoError(t, err)
+	assert.Equal(t, path+".bak", backup)
+
+	data, err := os.ReadFile(backup) //nolint:gosec // test-controlled path
+	require.NoError(t, err)
+	assert.Equal(t, "hotkey: broken: yaml", string(data), "the original content must survive")
+
+	_, err = os.Stat(path)
+	assert.True(t, os.IsNotExist(err), "the original path should be free for a fresh file")
+}
+
+func TestBackupFailsWhenThereIsNoFile(t *testing.T) {
+	_, err := Backup(filepath.Join(t.TempDir(), "missing.yaml"))
+	assert.Error(t, err)
+}

@@ -147,32 +147,58 @@ func (a *app) loadSettings() {
 
 	defaults := config.Config{Hotkey: defaultHotkey, LaunchAtLogin: loginItemPresent()}
 	cfg, existed, err := config.Load(path, defaults)
-	if err != nil {
-		// The file exists but is unreadable or corrupt. Rewriting it stops every
-		// later launch from silently discarding the user's settings, but the file
-		// is edited by hand through the "Edit shortcut..." item, so move the
-		// original aside first: a YAML typo must not destroy their settings.
-		slog.Error("failed to load config", "error", err)
-		if path != "" {
-			backup, backupErr := config.Backup(path)
-			if backupErr != nil {
-				slog.Error("failed to preserve the unreadable config", "error", backupErr)
-			} else {
-				slog.Warn("moved the unreadable config aside and restored defaults", "backup", backup)
-			}
-		}
-		cfg = defaults
-		existed = false
-	}
-	a.settings = cfg
 
-	if !existed && path != "" {
-		if err := config.Save(path, cfg); err != nil {
-			slog.Error("failed to write initial config", "error", err)
+	var backup func() (string, error)
+	if path != "" {
+		backup = func() (string, error) { return config.Backup(path) }
+	}
+
+	settings, write := resolveLoad(cfg, existed, err, defaults, backup)
+	a.settings = settings
+
+	if write && path != "" {
+		if err := config.Save(path, settings); err != nil {
+			slog.Error("failed to write config", "error", err)
 		}
 	}
 
 	a.reconcileLogin()
+}
+
+// resolveLoad decides which settings to use and whether the config file should
+// be rewritten from them.
+//
+// On a load error the file is unreadable or corrupt. Rewriting it stops every
+// later launch from silently discarding the user's settings, but the file is
+// edited by hand through the "Edit shortcut..." item, so the original must be
+// preserved first: a YAML typo must not destroy their settings. If it cannot be
+// preserved, nothing is rewritten and this session simply runs on defaults —
+// overwriting the only copy would be exactly the loss the backup exists to
+// prevent.
+func resolveLoad(
+	cfg config.Config,
+	existed bool,
+	loadErr error,
+	defaults config.Config,
+	backup func() (string, error),
+) (settings config.Config, write bool) {
+	if loadErr == nil {
+		return cfg, !existed
+	}
+
+	slog.Error("failed to load config", "error", loadErr)
+	if backup == nil {
+		return defaults, false
+	}
+
+	path, err := backup()
+	if err != nil {
+		slog.Error("leaving the unreadable config in place, it could not be preserved", "error", err)
+		return defaults, false
+	}
+
+	slog.Warn("moved the unreadable config aside and restored defaults", "backup", path)
+	return defaults, true
 }
 
 // reconcileLogin makes the OS autostart mechanism match the config. enable and
@@ -336,19 +362,26 @@ func (a *app) flash(gen *uint64, apply, restore func(), d time.Duration) {
 	mine := *gen
 	a.mu.Unlock()
 
-	// apply runs with no lock held, deliberately. It reaches into systray, which
-	// on macOS blocks on a main-thread round-trip, and a panic there while
-	// holding a.mu would wedge the app: convert's recover handler calls
-	// flashError, which would block on the same mutex forever, leaving
-	// converting set and every later conversion rejected. Ordering between two
-	// flashes of the same surface is guaranteed by beginConvert, which lets only
-	// one conversion run at a time.
+	// Neither apply nor restore runs under a.mu, deliberately. Every systray call
+	// on macOS blocks on a main-thread round-trip that AppKit does not service
+	// while a status menu is open, so holding a.mu across one would block
+	// beginConvert for as long as the user keeps the menu open. A panic in apply
+	// would be worse still: convert's recover handler calls flashError, which
+	// would block on the same mutex forever and wedge the app permanently.
+	//
+	// The cost is a narrow window in which a flash starting just as an older
+	// restore fires can have its message wiped early. That is cosmetic: the
+	// newer flash's own timer still runs, so the resting state is always right.
+	// Ordering between two flashes of the same surface is guaranteed anyway by
+	// beginConvert, which lets only one conversion run at a time.
 	apply()
 
 	time.AfterFunc(d, func() {
 		a.mu.Lock()
-		defer a.mu.Unlock()
-		if *gen == mine {
+		latest := *gen == mine
+		a.mu.Unlock()
+
+		if latest {
 			restore()
 		}
 	})

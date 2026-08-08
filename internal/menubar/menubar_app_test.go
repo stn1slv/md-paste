@@ -3,12 +3,15 @@
 package menubar
 
 import (
+	"errors"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/stn1slv/md-paste/internal/config"
 )
 
 // fakeUI records the status-bar state. Restore timers run on their own
@@ -179,4 +182,74 @@ func TestBeginConvertAdmitsExactlyOneConcurrentCaller(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 	assert.Equal(t, int64(1), admitted, "more than one conversion ran concurrently")
+}
+
+func TestResolveLoad(t *testing.T) {
+	loaded := config.Config{Hotkey: "cmd+shift+v", LaunchAtLogin: true}
+	defaults := config.Config{Hotkey: "ctrl+cmd+opt+m"}
+	boom := errors.New("invalid YAML")
+
+	okBackup := func() (string, error) { return "/tmp/config.yaml.bak", nil }
+	failBackup := func() (string, error) { return "", errors.New("permission denied") }
+
+	tests := []struct {
+		name         string
+		cfg          config.Config
+		existed      bool
+		loadErr      error
+		backup       func() (string, error)
+		wantSettings config.Config
+		wantWrite    bool
+	}{
+		{
+			name:         "first run seeds the file",
+			cfg:          defaults,
+			existed:      false,
+			backup:       okBackup,
+			wantSettings: defaults,
+			wantWrite:    true,
+		},
+		{
+			name:         "existing file is used and left alone",
+			cfg:          loaded,
+			existed:      true,
+			backup:       okBackup,
+			wantSettings: loaded,
+			wantWrite:    false,
+		},
+		{
+			name:         "corrupt file is preserved, then rewritten",
+			existed:      true,
+			loadErr:      boom,
+			backup:       okBackup,
+			wantSettings: defaults,
+			wantWrite:    true,
+		},
+		{
+			// The whole point of the backup is not to lose the user's settings.
+			// If it cannot be taken, the file must be left exactly as it is.
+			name:         "corrupt file is left alone when it cannot be preserved",
+			existed:      true,
+			loadErr:      boom,
+			backup:       failBackup,
+			wantSettings: defaults,
+			wantWrite:    false,
+		},
+		{
+			name:         "no config path means nothing to preserve or write",
+			existed:      true,
+			loadErr:      boom,
+			backup:       nil,
+			wantSettings: defaults,
+			wantWrite:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			settings, write := resolveLoad(tt.cfg, tt.existed, tt.loadErr, defaults, tt.backup)
+			assert.Equal(t, tt.wantSettings, settings)
+			assert.Equal(t, tt.wantWrite, write, "wrong decision about rewriting the config file")
+		})
+	}
 }
