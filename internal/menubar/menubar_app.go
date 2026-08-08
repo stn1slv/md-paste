@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log/slog"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"fyne.io/systray"
@@ -20,6 +19,10 @@ const (
 	convertLabel      = "Convert clipboard to Markdown"
 	flashDuration     = 1 * time.Second
 	errorRestoreDelay = 1500 * time.Millisecond
+
+	// readyGrace bounds how long Run waits for systray's onReady goroutine to be
+	// scheduled before concluding the status bar item was never created.
+	readyGrace = 1 * time.Second
 )
 
 // statusUI is the slice of the status-bar surface the flash logic drives. It is
@@ -78,9 +81,10 @@ type app struct {
 func Run(cfg Config) error {
 	a := &app{cfg: cfg}
 
-	var started atomic.Bool
+	started := make(chan struct{})
+	var once sync.Once
 	systray.Run(func() {
-		started.Store(true)
+		once.Do(func() { close(started) })
 		a.onReady()
 	}, func() {})
 
@@ -88,10 +92,18 @@ func Run(cfg Config) error {
 	// means the status bar item was never created, so report it instead of
 	// exiting 0: this command is what the LaunchAgent and the Windows Run key
 	// invoke, and a broken autostart must not look like a clean run.
-	if !started.Load() {
+	//
+	// systray runs onReady on a goroutine of its own and neither the macOS nor
+	// the Windows backend waits for it, so a fast quit can return from Run
+	// before that goroutine is scheduled. Allow a short grace period: if the
+	// tray did come up, the goroutine is already runnable and arrives at once;
+	// if it never came up, nothing will ever release it and we fall through.
+	select {
+	case <-started:
+		return nil
+	case <-time.After(readyGrace):
 		return errors.New("menu bar failed to start: the status bar item was never created")
 	}
-	return nil
 }
 
 func (a *app) onReady() {
@@ -136,10 +148,19 @@ func (a *app) loadSettings() {
 	defaults := config.Config{Hotkey: defaultHotkey, LaunchAtLogin: loginItemPresent()}
 	cfg, existed, err := config.Load(path, defaults)
 	if err != nil {
-		// The file exists but is unreadable or corrupt. Fall back to defaults and
-		// rewrite it, otherwise every launch silently discards the user's
-		// settings and they never learn the file is broken.
-		slog.Error("failed to load config, rewriting it with defaults", "error", err)
+		// The file exists but is unreadable or corrupt. Rewriting it stops every
+		// later launch from silently discarding the user's settings, but the file
+		// is edited by hand through the "Edit shortcut..." item, so move the
+		// original aside first: a YAML typo must not destroy their settings.
+		slog.Error("failed to load config", "error", err)
+		if path != "" {
+			backup, backupErr := config.Backup(path)
+			if backupErr != nil {
+				slog.Error("failed to preserve the unreadable config", "error", backupErr)
+			} else {
+				slog.Warn("moved the unreadable config aside and restored defaults", "backup", backup)
+			}
+		}
 		cfg = defaults
 		existed = false
 	}
@@ -188,29 +209,47 @@ func (a *app) bindHotkey() {
 
 func (a *app) loop(mEditShortcut, mReload, mLogin, mQuit *systray.MenuItem) {
 	for {
-		select {
-		case <-a.mConvert.ClickedCh:
-			a.convert()
-		case <-mEditShortcut.ClickedCh:
-			if a.cfgPath == "" {
-				slog.Error("cannot open config file: config path is unavailable")
-				break
-			}
-			if err := openConfigFile(a.cfgPath); err != nil {
-				slog.Error("failed to open config file", "path", a.cfgPath, "error", err)
-			}
-		case <-mReload.ClickedCh:
-			a.reloadConfig(mLogin)
-		case <-mLogin.ClickedCh:
-			a.toggleLogin(mLogin)
-		case <-mQuit.ClickedCh:
-			if a.unbindHotkey != nil {
-				a.unbindHotkey()
-			}
-			systray.Quit()
+		if quit := a.handleNextClick(mEditShortcut, mReload, mLogin, mQuit); quit {
 			return
 		}
 	}
+}
+
+// handleNextClick waits for one menu click, handles it, and reports whether the
+// app should quit. A panic in a handler is contained here rather than killing
+// the resident app: reloadConfig unmarshals a file the user edits by hand, and
+// the launch-at-login helpers call into the OS. Recovering per click rather than
+// around the whole loop keeps the menu responsive afterwards.
+func (a *app) handleNextClick(mEditShortcut, mReload, mLogin, mQuit *systray.MenuItem) (quit bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("menu bar action panicked", "panic", r)
+		}
+	}()
+
+	select {
+	case <-a.mConvert.ClickedCh:
+		a.convert()
+	case <-mEditShortcut.ClickedCh:
+		if a.cfgPath == "" {
+			slog.Error("cannot open config file: config path is unavailable")
+			return false
+		}
+		if err := openConfigFile(a.cfgPath); err != nil {
+			slog.Error("failed to open config file", "path", a.cfgPath, "error", err)
+		}
+	case <-mReload.ClickedCh:
+		a.reloadConfig(mLogin)
+	case <-mLogin.ClickedCh:
+		a.toggleLogin(mLogin)
+	case <-mQuit.ClickedCh:
+		if a.unbindHotkey != nil {
+			a.unbindHotkey()
+		}
+		systray.Quit()
+		return true
+	}
+	return false
 }
 
 // reloadConfig re-reads the file and applies changes live: it re-registers the
@@ -297,7 +336,15 @@ func (a *app) flash(gen *uint64, apply, restore func(), d time.Duration) {
 	mine := *gen
 	a.mu.Unlock()
 
+	// apply runs with no lock held, deliberately. It reaches into systray, which
+	// on macOS blocks on a main-thread round-trip, and a panic there while
+	// holding a.mu would wedge the app: convert's recover handler calls
+	// flashError, which would block on the same mutex forever, leaving
+	// converting set and every later conversion rejected. Ordering between two
+	// flashes of the same surface is guaranteed by beginConvert, which lets only
+	// one conversion run at a time.
 	apply()
+
 	time.AfterFunc(d, func() {
 		a.mu.Lock()
 		defer a.mu.Unlock()

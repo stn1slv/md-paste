@@ -61,6 +61,17 @@ func Load(path string, defaults Config) (cfg Config, existed bool, err error) {
 // configFileMode keeps the config readable by its owner only.
 const configFileMode = 0o600
 
+// Backup moves an unusable config file aside and returns the backup path. The
+// file is user-editable, so a typo must never silently destroy the settings:
+// the caller can rewrite defaults knowing the original is still recoverable.
+func Backup(path string) (string, error) {
+	backup := path + ".bak"
+	if err := os.Rename(path, backup); err != nil {
+		return "", fmt.Errorf("failed to back up config to %q: %w", backup, err)
+	}
+	return backup, nil
+}
+
 // Save writes the config to path, creating the parent directory if needed. The
 // write is atomic: the resident app rewrites this file on every settings change,
 // and a partial write would leave a corrupt config behind.

@@ -1,8 +1,16 @@
-// Package atomicfile writes files atomically. Content goes to a temporary file
-// in the destination directory and is then renamed into place, so an
-// interrupted or failed write can never leave a truncated file where a complete
-// one used to be. Writing to a fresh temporary file also means an existing
-// symlink at the destination is replaced rather than followed.
+// Package atomicfile replaces files atomically. Content goes to a temporary
+// file in the destination directory and is then renamed into place, so a reader
+// never observes a partial file and an interrupted or failed write cannot leave
+// a truncated one where a complete one used to be. Writing to a fresh temporary
+// file also means an existing symlink at the destination is replaced rather
+// than followed.
+//
+// The guarantee is crash-consistency, not power-loss durability: the file is
+// flushed before the rename, but the parent directory is not, so a power loss
+// can still lose the rename and leave the previous content in place. That is
+// the right trade for this application's small, rewritable files. A process
+// killed between creating the temporary file and renaming it leaves a hidden
+// .tmp file behind that nothing collects.
 package atomicfile
 
 import (
@@ -51,6 +59,13 @@ func writeAndClose(f *os.File, data []byte, perm os.FileMode) error {
 	if _, err := f.Write(data); err != nil {
 		_ = f.Close()
 		return fmt.Errorf("failed to write %q: %w", f.Name(), err)
+	}
+	// Flush before the rename, so the new directory entry cannot point at content
+	// still sitting in the page cache. See the package doc for what this does and
+	// does not guarantee.
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("failed to flush %q: %w", f.Name(), err)
 	}
 	if err := f.Close(); err != nil {
 		return fmt.Errorf("failed to close %q: %w", f.Name(), err)

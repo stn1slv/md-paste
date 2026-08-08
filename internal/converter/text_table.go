@@ -11,7 +11,9 @@ var colSeparator = regexp.MustCompile(`\s{2,}|\t`)
 
 // ExtractTableFromText attempts to reconstruct a table from plain text using layout heuristics.
 func ExtractTableFromText(text string) (models.Table, bool) {
-	lines := strings.Split(strings.TrimSpace(text), "\n")
+	// Only surrounding blank lines are stripped. Leading whitespace on the first
+	// line is significant to dedent below, so TrimSpace must not eat it.
+	lines := strings.Split(strings.Trim(text, "\r\n"), "\n")
 	if len(lines) < 2 {
 		return models.Table{}, false
 	}
@@ -72,30 +74,33 @@ func isTabular(table models.Table) bool {
 	// Heuristic 4: Real tables are close to rectangular. Require the most common
 	// column count to cover at least half of the multi-column rows, so text whose
 	// rows disagree wildly on their width is rejected.
-	widest := 0
+	mostCommonWidthCount := 0
 	for _, n := range countByWidth {
-		if n > widest {
-			widest = n
+		if n > mostCommonWidthCount {
+			mostCommonWidthCount = n
 		}
 	}
-	return widest*2 >= multiColRows
+	return mostCommonWidthCount*2 >= multiColRows
 }
 
 func parseTextToRows(lines []string) models.Table {
 	var table models.Table
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
+	for _, line := range dedent(lines) {
+		if strings.TrimSpace(line) == "" {
 			continue
 		}
 
-		// Split the trimmed line: leading indentation would otherwise match the
-		// separator and produce a spurious empty first column.
-		parts := colSeparator.Split(trimmed, -1)
+		parts := colSeparator.Split(line, -1)
 
 		cleanParts := make([]string, 0, len(parts))
 		for _, p := range parts {
 			cleanParts = append(cleanParts, strings.TrimSpace(p))
+		}
+
+		// Remove trailing empty parts introduced by trailing whitespace. Leading
+		// ones are kept: they are a genuinely empty first column.
+		for len(cleanParts) > 0 && cleanParts[len(cleanParts)-1] == "" {
+			cleanParts = cleanParts[:len(cleanParts)-1]
 		}
 
 		if len(cleanParts) > 0 {
@@ -103,6 +108,47 @@ func parseTextToRows(lines []string) models.Table {
 		}
 	}
 	return table
+}
+
+// dedent strips the longest leading-whitespace prefix shared by every non-blank
+// line. Uniform indentation would otherwise match the column separator and give
+// every row a spurious empty first column, while trimming each line on its own
+// would discard the genuinely empty first column of a continuation row (a row
+// whose first cell is blank is indented past where that cell would start).
+func dedent(lines []string) []string {
+	prefix := ""
+	found := false
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+		if !found {
+			prefix, found = indent, true
+			continue
+		}
+		if prefix = commonPrefix(prefix, indent); prefix == "" {
+			return lines
+		}
+	}
+	if prefix == "" {
+		return lines
+	}
+
+	out := make([]string, len(lines))
+	for i, line := range lines {
+		out[i] = strings.TrimPrefix(line, prefix)
+	}
+	return out
+}
+
+func commonPrefix(a, b string) string {
+	n := min(len(a), len(b))
+	i := 0
+	for i < n && a[i] == b[i] {
+		i++
+	}
+	return a[:i]
 }
 
 func buildTextRow(parts []string) models.Row {

@@ -78,7 +78,7 @@ func TestFlashErrorDisablesConvertAndRestoresOnce(t *testing.T) {
 
 	title, enabled, changes := ui.state()
 	assert.Equal(t, "Nothing to convert", title)
-	assert.False(t, enabled, "the Convert item stays enabled during an error flash")
+	assert.False(t, enabled, "the Convert item was left enabled during an error flash")
 	assert.Equal(t, 1, changes)
 }
 
@@ -112,6 +112,37 @@ func TestIconFlashDoesNotCancelAPendingTitleRestore(t *testing.T) {
 	title, enabled, _ := ui.state()
 	assert.Equal(t, convertLabel, title)
 	assert.True(t, enabled, "the Convert item was left disabled")
+}
+
+// panicUI fails the way a broken systray would: from inside apply.
+type panicUI struct{ fakeUI }
+
+func (u *panicUI) setIcon(_ []byte) { panic("systray blew up") }
+
+// A panic inside apply must not leave a.mu held. convert's recover handler
+// calls flashError, which takes the same mutex; holding it across apply would
+// block that handler forever, leaving converting set so every later conversion
+// is rejected while the icon still looks healthy.
+func TestFlashSurvivesAPanicInApply(t *testing.T) {
+	a := &app{ui: &panicUI{}}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		defer func() {
+			if r := recover(); r != nil {
+				// Mirrors convert's recover handler.
+				a.flashError("Conversion failed")
+			}
+		}()
+		a.flashSuccess()
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the recover handler blocked on a.mu held by the panicking apply")
+	}
 }
 
 func TestBeginConvertDropsOverlappingConversions(t *testing.T) {

@@ -50,6 +50,17 @@ int read_clipboard(char **html, char **plain) {
 
 			return (*html != NULL || *plain != NULL) ? 1 : 0;
 		} @catch (NSException *e) {
+			// Reading plain text happens after the HTML strdup, so an exception
+			// can arrive with one buffer already allocated. The Go side discards
+			// both pointers on a failure status, so free them here.
+			if (*html != NULL) {
+				free(*html);
+				*html = NULL;
+			}
+			if (*plain != NULL) {
+				free(*plain);
+				*plain = NULL;
+			}
 			return -1;
 		}
 	}

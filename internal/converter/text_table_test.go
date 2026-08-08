@@ -131,10 +131,10 @@ func TestExtractTableFromText(t *testing.T) {
 			found: false,
 		},
 		{
-			// An indented line must not gain a leading empty column from the
-			// indentation matching the column separator.
-			name: "indented rows keep their column count",
-			text: "Col1  Col2\n\tVal1  Val2",
+			// Indentation shared by every row is layout, not a column: it must not
+			// gain each row a leading empty column.
+			name: "uniform indentation is stripped",
+			text: "\tCol1  Col2\n\tVal1  Val2",
 			expected: models.Table{
 				Rows: []models.Row{
 					{
@@ -157,6 +157,35 @@ func TestExtractTableFromText(t *testing.T) {
 			name:  "indented prose is not a table",
 			text:  "Just some text\n  On multiple lines",
 			found: false,
+		},
+		{
+			// Indentation NOT shared by every row marks a blank first cell. The
+			// continuation value belongs under the second column, not the first.
+			name: "continuation row keeps its empty first column",
+			text: "Name    Value\nAlice   1\n        2",
+			expected: models.Table{
+				Rows: []models.Row{
+					{
+						Cells: []models.Cell{
+							{Content: "Name", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "Value", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+						},
+					},
+					{
+						Cells: []models.Cell{
+							{Content: "Alice", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "1", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+						},
+					},
+					{
+						Cells: []models.Cell{
+							{Content: "", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+							{Content: "2", Alignment: models.AlignNone, RowSpan: 1, ColSpan: 1},
+						},
+					},
+				},
+			},
+			found: true,
 		},
 		{
 			// A single line with a double space inside a block of prose is not
