@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := help
 
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null | sed 's/^v//' || echo dev)
+VERSION ?= $(shell (git describe --tags --always --dirty 2>/dev/null || echo dev) | sed 's/^v//')
+LDFLAGS := -X github.com/stn1slv/md-paste/internal/cli.version=$(VERSION)
 
 .PHONY: help setup test test-integration lint format build run upgrade-deps icns bundle
 
@@ -12,7 +13,7 @@ setup: ## Install dependencies and tools
 	go mod tidy
 
 test: ## Run unit tests
-	go test ./...
+	go test -race ./...
 
 test-integration: ## Run integration tests
 	MD_PASTE_E2E=1 go test ./...
@@ -24,7 +25,7 @@ format: ## Format code
 	gofumpt -w -extra .
 
 build: ## Build the application
-	go build -o bin/md-paste ./cmd/md-paste
+	go build -ldflags "$(LDFLAGS)" -o bin/md-paste ./cmd/md-paste
 
 run: ## Run the application
 	go run ./cmd/md-paste
