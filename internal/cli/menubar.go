@@ -8,12 +8,13 @@ import (
 
 var menubarCmd = &cobra.Command{
 	Use:   "menubar",
-	Short: "Run md-paste as a macOS menu bar app",
-	Long: `menubar runs md-paste as a resident macOS menu bar app.
+	Short: "Run md-paste as a macOS menu bar or Windows tray app",
+	Long: `menubar runs md-paste as a resident macOS menu bar or Windows tray app.
 
-Click the menu bar icon and choose "Convert clipboard to Markdown" to convert
-the current clipboard content in place. The menu also offers a "Launch at login"
-toggle. This command is only supported on macOS.`,
+Click the icon and choose "Convert clipboard to Markdown" to convert the
+current clipboard content in place, or press the global shortcut. The menu
+also offers a "Launch at login" toggle. This command is supported on macOS
+and Windows.`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(_ *cobra.Command, _ []string) error {

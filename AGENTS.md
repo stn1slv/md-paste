@@ -1,6 +1,6 @@
 # md-paste Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-03-06
+Auto-generated from all feature plans. Last updated: 2026-10-17
 
 ## Active Technologies
 - Go 1.26+ + `golang.org/x/net/html` (002-table-support)
@@ -9,6 +9,7 @@ Auto-generated from all feature plans. Last updated: 2026-03-06
 - **CLI Framework**: `cobra`
 - **Markdown Processing**: `html-to-markdown`
 - **Testing**: `testify/assert`, `testify/require`
+- **Menu Bar / Tray**: `fyne.io/systray`; YAML config via `gopkg.in/yaml.v3`; Windows registry via `golang.org/x/sys`
 
 ## Project Structure
 
@@ -35,6 +36,8 @@ tests/      # Additional integration tests
 - Adhere to `golangci-lint` rules defined in `.golangci.yml`.
 
 ## Recent Changes
+- Converter fidelity: HTML always wins over the plain-text table heuristic (FR-011); strikethrough, task lists and CSS-only inline styles (Google Docs) are converted.
+- Menu bar / tray app: `md-paste menubar` (macOS menu bar, Windows tray via `md-paste-tray.exe`) with a global shortcut and a YAML config (`internal/menubar`, `internal/config`). Windows clipboard backend in `internal/clipboard/clipboard_windows.go`.
 - 003-save-raw-data: Implemented optional `--save-raw` flag to persist original clipboard HTML/PlainText to file. Added `internal/clipboard/exporter.go` for persistence logic.
 - 002-table-support: Added Go 1.26+ + `golang.org/x/net/html`
 
@@ -46,9 +49,9 @@ tests/      # Additional integration tests
 
 ### 1. Native macOS Clipboard via CGO
 - **Context:** Need high-fidelity access to the macOS clipboard, specifically `public.html` (NSPasteboardTypeHTML), which standard Go libraries ignore.
-- **Decision:** Implemented a direct CGO wrapper (`clipboard_darwin.go`) targeting `Foundation` and `AppKit` frameworks. Provided a stub (`clipboard_stub.go`) for non-darwin platforms to ensure cross-compilation success.
+- **Decision:** Implemented a direct CGO wrapper (`clipboard_darwin.go`) targeting `Foundation` and `AppKit` frameworks. A pure-Go Win32 backend (`clipboard_windows.go`) serves Windows, and a stub (`clipboard_stub.go`) covers other platforms to ensure cross-compilation success.
 - **Rationale:** Native integration guarantees access to rich-text data copied from browsers and word processors.
-- **Constraints:** Requires a `macos-latest` runner for GitHub Actions. Cross-platform testing requires conditional `//go:build darwin` tags.
+- **Constraints:** Requires a `macos-latest` runner for GitHub Actions. Cross-platform testing requires conditional `//go:build darwin` tags. CI lints the Windows backend with `GOOS=windows` from Linux and the darwin backend on macOS.
 
 ### 2. Silence-on-Success CLI Design
 - **Context:** The tool operates within a pipeline or as a background utility (copy/paste workflow).
@@ -60,7 +63,7 @@ tests/      # Additional integration tests
 - **Context:** Need a frictionless distribution mechanism for macOS users that avoids the strict notability requirements of the official `homebrew-core` repository.
 - **Decision:** Configured a `.goreleaser.yaml` pipeline attached to GitHub Actions that automatically pushes a Ruby formula to a separate, custom `stn1slv/homebrew-tap` repository.
 - **Rationale:** A custom tap (`brew install stn1slv/tap/md-paste`) provides the exact same UX as core Homebrew but gives full control over the release lifecycle and bypasses manual PR reviews from the Homebrew team.
-- **Constraints:** Requires a dedicated `TAP_GITHUB_TOKEN` secret in the main repository with `repo` scope to allow the GitHub Action to cross-publish to the tap repository. Also requires using the safer array syntax in Ruby `system` calls (`system "#{bin}/md-paste", "--help"`) to avoid shell evaluation vulnerabilities.
+- **Constraints:** Requires a dedicated `TAP_GITHUB_TOKEN` secret in the main repository with `repo` scope to allow the GitHub Action to cross-publish to the tap repository. Also requires using the safer array syntax in Ruby `system` calls (`system "#{bin}/md-paste", "--version"`) to avoid shell evaluation vulnerabilities.
 
 ## Known Issues & Gotchas
 
