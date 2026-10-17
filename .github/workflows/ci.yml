@@ -28,9 +28,9 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           # golangci-lint v2.x needs action @v8 or later. The pinned version
-          # must be a binary built with go1.26 to match go.mod; v2.12.1
+          # must be a binary built with go1.26 or later to match go.mod; v2.14.0
           # satisfies that. Bump as new releases ship.
-          version: v2.12.1
+          version: v2.14.0
           args: --timeout=5m
 
       # The Windows backend is pure Go (no CGO), so it can be vetted and
@@ -45,7 +45,7 @@ jobs:
         env:
           GOOS: windows
         with:
-          version: v2.12.1
+          version: v2.14.0
           args: --timeout=5m
 
   lint-darwin:
@@ -63,7 +63,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.12.1
+          version: v2.14.0
           args: --timeout=5m
 
   test-cross-platform:
