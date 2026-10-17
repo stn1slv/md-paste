@@ -60,14 +60,14 @@ func init() {
 		slog.Error("failed to encode the HTML clipboard format name, rich paste is disabled", "error", err)
 		return
 	}
-	r, _, callErr := procRegisterClipboardFormatW.Call(uintptr(unsafe.Pointer(name)))
+	r, _, callErr := procRegisterClipboardFormatW.Call(uintptr(unsafe.Pointer(name))) //nolint:gosec // UTF-16 name pointer for a Win32 call
 	if r == 0 {
 		// Without this format the clipboard can only be read as plain text.
 		// Say so, otherwise rich paste silently stops working.
 		slog.Error("failed to register the HTML clipboard format, falling back to plain text", "error", callErr)
 		return
 	}
-	cfHTMLFormat = uint32(r)
+	cfHTMLFormat = uint32(r) //nolint:gosec // registered format IDs are in 0xC000-0xFFFF
 }
 
 // openClipboard opens the system clipboard, retrying briefly while another
@@ -105,15 +105,15 @@ func closeClipboard() {
 // the direct unsafe.Pointer(uintptr) form, which sidesteps go vet's
 // unsafeptr false-positive for OS-level (non-GC) memory addresses.
 func lockGlobal(h uintptr) (unsafe.Pointer, error) {
-	r, _, err := syscall.Syscall(procGlobalLock.Addr(), 1, h, 0, 0)
+	r, _, err := syscall.SyscallN(procGlobalLock.Addr(), h)
 	if r == 0 {
 		return nil, err
 	}
-	return *(*unsafe.Pointer)(unsafe.Pointer(&r)), nil
+	return *(*unsafe.Pointer)(unsafe.Pointer(&r)), nil //nolint:gosec // see the comment above
 }
 
 func unlockGlobal(h uintptr) {
-	syscall.Syscall(procGlobalUnlock.Addr(), 1, h, 0, 0) //nolint:errcheck
+	_, _, _ = syscall.SyscallN(procGlobalUnlock.Addr(), h)
 }
 
 // globalSize returns the size in bytes of a global memory allocation, or 0 on
@@ -139,7 +139,7 @@ func readGlobalMemBytes(h uintptr) []byte {
 		return nil
 	}
 
-	mem := unsafe.Slice((*byte)(p), size)
+	mem := unsafe.Slice((*byte)(p), size) //nolint:gosec // bounded by GlobalSize
 	n := 0
 	for n < len(mem) && mem[n] != 0 {
 		n++
@@ -162,7 +162,7 @@ func readGlobalMemUTF16(h uintptr) string {
 		return ""
 	}
 
-	mem := unsafe.Slice((*uint16)(p), size/2)
+	mem := unsafe.Slice((*uint16)(p), size/2) //nolint:gosec // bounded by GlobalSize
 	n := 0
 	for n < len(mem) && mem[n] != 0 {
 		n++
@@ -272,7 +272,7 @@ func WriteMarkdown(text string) error {
 
 	p, lockErr := lockGlobal(h)
 	if lockErr != nil {
-		procGlobalFree.Call(h) //nolint:errcheck
+		_, _, _ = procGlobalFree.Call(h)
 		return fmt.Errorf("GlobalLock: %w", lockErr)
 	}
 
@@ -283,19 +283,19 @@ func WriteMarkdown(text string) error {
 	unlockGlobal(h)
 
 	if err := openClipboard(); err != nil {
-		procGlobalFree.Call(h) //nolint:errcheck
+		_, _, _ = procGlobalFree.Call(h)
 		return err
 	}
 	defer closeClipboard()
 
 	if r, _, err := procEmptyClipboard.Call(); r == 0 {
-		procGlobalFree.Call(h) //nolint:errcheck
+		_, _, _ = procGlobalFree.Call(h)
 		return fmt.Errorf("EmptyClipboard: %w", err)
 	}
 
 	// After a successful SetClipboardData the OS owns the handle; do not free it.
 	if r, _, err := procSetClipboardData.Call(cfUnicodeText, h); r == 0 {
-		procGlobalFree.Call(h) //nolint:errcheck
+		_, _, _ = procGlobalFree.Call(h)
 		return fmt.Errorf("SetClipboardData: %w", err)
 	}
 

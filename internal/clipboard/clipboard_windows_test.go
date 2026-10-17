@@ -3,6 +3,7 @@
 package clipboard
 
 import (
+	"encoding/binary"
 	"fmt"
 	"testing"
 	"unicode/utf16"
@@ -74,14 +75,14 @@ func allocGlobalBytes(t *testing.T, data []byte) uintptr {
 		t.Fatalf("GlobalAlloc: %v", err)
 	}
 	t.Cleanup(func() {
-		procGlobalFree.Call(h) //nolint:errcheck
+		_, _, _ = procGlobalFree.Call(h)
 	})
 
 	p, lockErr := lockGlobal(h)
 	if lockErr != nil {
 		t.Fatalf("GlobalLock: %v", lockErr)
 	}
-	copy(unsafe.Slice((*byte)(p), len(data)), data)
+	copy(unsafe.Slice((*byte)(p), len(data)), data) //nolint:gosec // allocation is len(data) bytes
 	unlockGlobal(h)
 	return h
 }
@@ -111,10 +112,9 @@ func TestReadGlobalMemUTF16(t *testing.T) {
 		if terminated {
 			u = append(u, 0)
 		}
-		b := make([]byte, len(u)*2)
-		for i, v := range u {
-			b[i*2] = byte(v)
-			b[i*2+1] = byte(v >> 8)
+		b := make([]byte, 0, len(u)*2)
+		for _, v := range u {
+			b = binary.LittleEndian.AppendUint16(b, v)
 		}
 		return b
 	}

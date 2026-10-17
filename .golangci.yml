@@ -53,7 +53,8 @@ formatters:
   settings:
     gofumpt:
       module-path: github.com/stn1slv/md-paste
-      extra-rules: true
+      extra:
+        group-params: true
 
 issues:
   max-issues-per-linter: 0
