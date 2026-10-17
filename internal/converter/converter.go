@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 
 	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/stn1slv/md-paste/internal/models"
+	"golang.org/x/net/html"
 )
 
 const emptyDomain = ""
@@ -19,18 +21,14 @@ func Convert(content models.ClipboardContent) (models.MarkdownDocument, error) {
 		return models.MarkdownDocument{}, errors.New("no content to convert")
 	}
 
-	// 1. If HTML is available, use the standard conversion with our custom table rule
+	// 1. If HTML is available, it always wins (FR-011). The plain-text table
+	// heuristic must not override it: the plain text of a <pre> block or of
+	// aligned prose often looks tabular, and using it would drop the HTML.
 	if content.RawHTML != "" {
-		hasTable := strings.Contains(strings.ToLower(content.RawHTML), "<table")
-		if !hasTable && content.PlainText != "" {
-			if doc, ok := tryTextTableConversion(content.PlainText, content.ContentType); ok {
-				return doc, nil
-			}
-		}
 		return performStandardHTMLConversion(content.RawHTML)
 	}
 
-	// 2. Try layout-aware text table extraction as a secondary fallback
+	// 2. Try layout-aware text table extraction for plain-text-only content
 	if content.PlainText != "" {
 		if doc, ok := tryTextTableConversion(content.PlainText, content.ContentType); ok {
 			return doc, nil
@@ -54,8 +52,53 @@ func tryTextTableConversion(plainText string, originalType models.ContentType) (
 	return models.MarkdownDocument{}, false
 }
 
-func performStandardHTMLConversion(rawHTML string) (models.MarkdownDocument, error) {
+// newMarkdownConverter returns an HTML-to-Markdown converter with the GFM
+// extensions md-paste supports (strikethrough, task lists) and inline-style
+// normalization. Tables are handled by a custom rule in
+// performStandardHTMLConversion.
+func newMarkdownConverter() *htmltomarkdown.Converter {
 	converter := htmltomarkdown.NewConverter(emptyDomain, true, nil)
+	converter.AddRules(strikethroughRule, taskListRule)
+	converter.Before(normalizeInlineStyles)
+	return converter
+}
+
+// The GFM rules below are written here instead of using the library's plugin
+// package, which would also pull in gopkg.in/yaml.v2 for an unrelated plugin.
+
+var strikethroughRule = htmltomarkdown.Rule{
+	Filter: []string{"del", "s", "strike"},
+	Replacement: func(content string, selec *goquery.Selection, _ *htmltomarkdown.Options) *string {
+		content = strings.TrimSpace(content)
+		if content == "" {
+			return &content
+		}
+		content = htmltomarkdown.AddSpaceIfNessesary(selec, "~~"+content+"~~")
+		return &content
+	},
+}
+
+var taskListRule = htmltomarkdown.Rule{
+	Filter: []string{"input"},
+	Replacement: func(_ string, selec *goquery.Selection, _ *htmltomarkdown.Options) *string {
+		if selec.AttrOr("type", "") != "checkbox" || !selec.Parent().Is("li") {
+			return nil
+		}
+		box := "[ ]"
+		if _, checked := selec.Attr("checked"); checked {
+			box = "[x]"
+		}
+		// The label text usually brings its own leading space.
+		next := selec.Nodes[0].NextSibling
+		if next == nil || next.Type != html.TextNode || next.Data == "" || !unicode.IsSpace(rune(next.Data[0])) {
+			box += " "
+		}
+		return &box
+	},
+}
+
+func performStandardHTMLConversion(rawHTML string) (models.MarkdownDocument, error) {
+	converter := newMarkdownConverter()
 
 	// Add custom rule for tables to use our high-fidelity extraction.
 	// This ensures that documents with text AND multiple tables are handled perfectly,

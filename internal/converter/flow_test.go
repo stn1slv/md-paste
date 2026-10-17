@@ -29,11 +29,10 @@ func TestClipboardFlow(t *testing.T) {
 		},
 		{
 			name: "Chrome simulated HTML",
-			// Chrome often uses inline styles or generic wrappers
-			html: "<meta charset='utf-8'><span style=\"font-weight: bold;\">Bold from Chrome</span>",
-			// Note: html-to-markdown handles standard b/strong. inline styles might be dropped unless explicitly handled,
-			// but we will test standard HTML for now as "Chrome". Actually chrome copies both b/strong.
-			expected: "Bold from Chrome", // Without a strong tag, it's just text. Let's use <strong>
+			// Chrome often uses inline styles or generic wrappers; a bold
+			// font-weight on a span is normalized to <strong> before conversion.
+			html:     "<meta charset='utf-8'><span style=\"font-weight: bold;\">Bold from Chrome</span>",
+			expected: "**Bold from Chrome**",
 		},
 		{
 			name:     "Chrome simulated HTML with bold",
